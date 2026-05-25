@@ -6,6 +6,7 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/events/screens/events_list_screen.dart';
 import '../../features/news/screens/news_detail_screen.dart';
 import '../../features/news/screens/news_list_screen.dart';
+import '../../features/rankings/screens/rankings_screen.dart';
 import '../../features/riders/screens/rider_detail_screen.dart';
 import '../../features/riders/screens/riders_list_screen.dart';
 import '../theme/app_colors.dart';
@@ -58,6 +59,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
           GoRoute(
+            path: '/rankings',
+            builder: (context, state) => const RankingsScreen(),
+          ),
+          GoRoute(
             path: '/profile',
             builder: (context, state) => const _ProfileScreen(),
           ),
@@ -100,11 +105,15 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: ':uciId',
-              builder: (context, state) => _ComingSoonScreen(
-                title: 'Jezdec #${state.pathParameters['uciId']}',
+              builder: (context, state) => RiderDetailScreen(
+                uciId: int.parse(state.pathParameters['uciId']!),
               ),
             ),
           ],
+        ),
+        GoRoute(
+          path: '/rankings',
+          builder: (context, state) => const RankingsScreen(),
         ),
         GoRoute(
           path: '/profile',
@@ -122,7 +131,7 @@ class _MainShell extends StatelessWidget {
 
   const _MainShell({required this.child});
 
-  static const _tabs = ['/news', '/events', '/riders', '/profile'];
+  static const _tabs = ['/news', '/events', '/riders', '/rankings', '/profile'];
 
   @override
   Widget build(BuildContext context) {
@@ -151,6 +160,11 @@ class _MainShell extends StatelessWidget {
             icon: Icon(Icons.directions_bike_outlined),
             selectedIcon: Icon(Icons.directions_bike, color: AppColors.primary),
             label: 'Jezdci',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.emoji_events_outlined),
+            selectedIcon: Icon(Icons.emoji_events, color: AppColors.primary),
+            label: 'Žebříček',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
@@ -331,32 +345,3 @@ class _RoleBadge extends StatelessWidget {
   }
 }
 
-// ── Coming soon ───────────────────────────────────────────────────────────────
-
-class _ComingSoonScreen extends StatelessWidget {
-  final String title;
-
-  const _ComingSoonScreen({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.construction, size: 64, color: AppColors.primary),
-            const SizedBox(height: 16),
-            Text('Připravujeme pro vás', style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: 8),
-            Text(
-              'Sekce $title bude brzy k dispozici.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

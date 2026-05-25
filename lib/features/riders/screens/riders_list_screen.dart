@@ -39,8 +39,11 @@ class RidersListScreen extends HookConsumerWidget {
     final colors = context.colors;
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () => ref.read(ridersProvider.notifier).refresh(),
+        child: CustomScrollView(
+          slivers: [
           SliverAppBar(
             floating: true,
             snap: true,
@@ -128,6 +131,7 @@ class RidersListScreen extends HookConsumerWidget {
             },
           ),
         ],
+        ),
       ),
     );
   }

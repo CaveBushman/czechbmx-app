@@ -18,6 +18,10 @@ class RiderModel {
   final String? class24;
   final String? city;
   final String? plateNumber;
+  final int points20;
+  final int points24;
+  final String? ranking20;
+  final String? ranking24;
 
   const RiderModel({
     required this.uciId,
@@ -37,6 +41,10 @@ class RiderModel {
     this.class24,
     this.city,
     this.plateNumber,
+    this.points20 = 0,
+    this.points24 = 0,
+    this.ranking20,
+    this.ranking24,
   });
 
   String get fullName {
@@ -84,6 +92,10 @@ class RiderModel {
       class24: json['class_24'] as String?,
       city: json['city'] as String?,
       plateNumber: json['plate_number']?.toString(),
+      points20: json['points_20'] as int? ?? 0,
+      points24: json['points_24'] as int? ?? 0,
+      ranking20: json['ranking_20']?.toString(),
+      ranking24: json['ranking_24']?.toString(),
     );
   }
 }
