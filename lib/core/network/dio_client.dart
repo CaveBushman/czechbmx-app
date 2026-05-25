@@ -34,10 +34,20 @@ class _LogInterceptor extends Interceptor {
   }
 
   @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    assert(() {
+      // ignore: avoid_print
+      print('[HTTP ${response.statusCode}] ${response.requestOptions.path} → ${response.data}');
+      return true;
+    }());
+    handler.next(response);
+  }
+
+  @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     assert(() {
       // ignore: avoid_print
-      print('[HTTP ERR] ${err.response?.statusCode} ${err.message}');
+      print('[HTTP ERR] ${err.response?.statusCode} ${err.response?.data} ${err.message}');
       return true;
     }());
     handler.next(err);

@@ -47,15 +47,15 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
   Future<void> login({required String email, required String password}) async {
     state = const AsyncData(AuthLoading());
-    state = await AsyncValue.guard(() async {
+    try {
       final user = await ref.read(authRepositoryProvider).login(
             email: email,
             password: password,
           );
-      return AuthAuthenticated(user);
-    });
-    if (state.hasError) {
+      state = AsyncData(AuthAuthenticated(user));
+    } catch (e) {
       state = const AsyncData(AuthUnauthenticated());
+      rethrow;
     }
   }
 
