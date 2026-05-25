@@ -1,78 +1,47 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../../riders/models/rider_model.dart';
-import '../../riders/rider_repository.dart';
+import '../models/ranking_model.dart';
+import '../ranking_repository.dart';
 
-// All active riders loaded once for rankings (no search/filter applied)
-final allRidersProvider =
-    AsyncNotifierProvider<AllRidersNotifier, List<RiderModel>>(AllRidersNotifier.new);
+// ── Categories ────────────────────────────────────────────────────────────────
 
-class AllRidersNotifier extends AsyncNotifier<List<RiderModel>> {
+final rankingCategoriesProvider =
+    AsyncNotifierProvider<RankingCategoriesNotifier, List<String>>(
+  RankingCategoriesNotifier.new,
+);
+
+class RankingCategoriesNotifier extends AsyncNotifier<List<String>> {
   @override
-  Future<List<RiderModel>> build() =>
-      ref.read(riderRepositoryProvider).fetchRiders();
+  Future<List<String>> build() =>
+      ref.read(rankingRepositoryProvider).fetchCategories();
 
   Future<void> refresh() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
-      () => ref.read(riderRepositoryProvider).fetchRiders(),
+      () => ref.read(rankingRepositoryProvider).fetchCategories(),
     );
   }
 }
 
-// 20" categories in display order
-const kCategories20 = [
-  'Men Elite',
-  'Women Elite',
-  'Men Under 23',
-  'Women Under 23',
-  'Men Junior',
-  'Women Junior',
-  'Men 17-24',
-  'Men 25-29',
-  'Men 30-34',
-  'Men 35 and over',
-  'Women 17-24',
-  'Women 25 and over',
-  'Boys 16',
-  'Boys 15',
-  'Boys 14',
-  'Boys 13',
-  'Boys 12',
-  'Boys 11',
-  'Boys 10',
-  'Boys 9',
-  'Boys 8',
-  'Boys 7',
-  'Boys 6',
-  'Girls 16',
-  'Girls 15',
-  'Girls 14',
-  'Girls 13',
-  'Girls 12',
-  'Girls 11',
-  'Girls 10',
-  'Girls 9',
-  'Girls 8',
-  'Girls 7',
-];
+// 20" categories: no "Cruiser" prefix
+List<String> categories20(List<String> all) =>
+    all.where((c) => !c.startsWith('Cruiser')).toList();
 
-// 24" categories in display order
-const kCategories24 = [
-  'Men Elite',
-  'Women Elite',
-  'Men 17-24',
-  'Men 25-39',
-  'Men 30-34',
-  'Men 35-39',
-  'Men 40-44',
-  'Men 45-49',
-  'Men 50 and over',
-  'Women 17-29',
-  'Women 30-99',
-  'Women 40 and over',
-  'Boys 15 and 16',
-  'Boys 13 and 14',
-  'Boys 12 and under',
-  'Girls 13-16',
-  'Girls 12 and under',
-];
+// 24" categories: "Cruiser " prefix — strip it for display, keep full for requests
+List<String> categories24(List<String> all) =>
+    all.where((c) => c.startsWith('Cruiser')).toList();
+
+String displayCategory24(String cat) =>
+    cat.startsWith('Cruiser ') ? cat.substring(8) : cat;
+
+// ── Per-category ranking ──────────────────────────────────────────────────────
+
+final rankingProvider =
+    AsyncNotifierProviderFamily<RankingNotifier, List<RankedRider>, String>(
+  RankingNotifier.new,
+);
+
+class RankingNotifier extends FamilyAsyncNotifier<List<RankedRider>, String> {
+  @override
+  Future<List<RankedRider>> build(String category) =>
+      ref.read(rankingRepositoryProvider).fetchRanking(category);
+}

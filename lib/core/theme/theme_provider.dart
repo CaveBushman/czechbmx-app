@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../l10n/app_localizations.dart';
 
 enum AppThemeMode {
-  system('system', 'Dle systému'),
-  light('light', 'Světlý'),
-  dark('dark', 'Tmavý');
+  system('system'),
+  light('light'),
+  dark('dark');
 
   final String key;
-  final String label;
-  const AppThemeMode(this.key, this.label);
+  const AppThemeMode(this.key);
+
+  String label(AppLocalizations l10n) => switch (this) {
+        AppThemeMode.system => l10n.systemTheme,
+        AppThemeMode.light => l10n.lightTheme,
+        AppThemeMode.dark => l10n.darkTheme,
+      };
 
   ThemeMode get flutterMode => switch (this) {
         AppThemeMode.system => ThemeMode.system,
@@ -23,8 +29,10 @@ enum AppThemeMode {
         AppThemeMode.dark => Icons.dark_mode_outlined,
       };
 
-  static AppThemeMode fromKey(String key) =>
-      AppThemeMode.values.firstWhere((e) => e.key == key, orElse: () => AppThemeMode.system);
+  static AppThemeMode fromKey(String key) => AppThemeMode.values.firstWhere(
+        (e) => e.key == key,
+        orElse: () => AppThemeMode.system,
+      );
 }
 
 // ── Shared preferences instance ───────────────────────────────────────────────
@@ -36,7 +44,9 @@ final sharedPreferencesProvider = FutureProvider<SharedPreferences>(
 // ── Theme mode provider ───────────────────────────────────────────────────────
 
 final themeModeProvider =
-    AsyncNotifierProvider<ThemeModeNotifier, AppThemeMode>(ThemeModeNotifier.new);
+    AsyncNotifierProvider<ThemeModeNotifier, AppThemeMode>(
+  ThemeModeNotifier.new,
+);
 
 class ThemeModeNotifier extends AsyncNotifier<AppThemeMode> {
   static const _key = 'app_theme_mode';

@@ -4,8 +4,13 @@ import '../models/event_model.dart';
 
 final selectedYearProvider = StateProvider<int>((ref) => DateTime.now().year);
 
-final eventsProvider =
-    AsyncNotifierProvider<EventsNotifier, List<EventModel>>(EventsNotifier.new);
+final eventsProvider = AsyncNotifierProvider<EventsNotifier, List<EventModel>>(
+  EventsNotifier.new,
+);
+
+final eventDetailProvider = FutureProvider.family<EventModel, int>(
+  (ref, id) => ref.read(eventRepositoryProvider).fetchEventDetail(id),
+);
 
 class EventsNotifier extends AsyncNotifier<List<EventModel>> {
   @override

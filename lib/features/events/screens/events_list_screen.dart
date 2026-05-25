@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/event_model.dart';
 import '../providers/event_provider.dart';
@@ -23,14 +26,14 @@ class EventsListScreen extends ConsumerWidget {
             SliverAppBar(
               floating: true,
               snap: true,
-              title: const Text('Závody'),
-              actions: [
-                _YearPicker(year: year, ref: ref),
-              ],
+              title: Text(context.l10n.events),
+              actions: [_YearPicker(year: year, ref: ref)],
             ),
             eventsAsync.when(
               loading: () => const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
               ),
               error: (err, _) => SliverFillRemaining(
                 child: _ErrorView(
@@ -39,7 +42,9 @@ class EventsListScreen extends ConsumerWidget {
                 ),
               ),
               data: (events) {
-                if (events.isEmpty) return const SliverFillRemaining(child: _EmptyView());
+                if (events.isEmpty) {
+                  return const SliverFillRemaining(child: _EmptyView());
+                }
                 return _EventsCalendar(events: events);
               },
             ),
@@ -50,7 +55,7 @@ class EventsListScreen extends ConsumerWidget {
   }
 }
 
-class _EventsCalendar extends ConsumerWidget {
+class _EventsCalendar extends HookConsumerWidget {
   final List<EventModel> events;
 
   const _EventsCalendar({required this.events});
@@ -59,16 +64,51 @@ class _EventsCalendar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final byMonth = ref.watch(eventsByMonthProvider);
     final months = byMonth.keys.toList()..sort();
+    final selectedYear = ref.watch(selectedYearProvider);
+
+    // Find the month index of the nearest upcoming event (only for current year)
+    final targetMonth = useMemoized(() {
+      if (selectedYear != DateTime.now().year) return null;
+      final now = DateTime.now();
+      for (final month in months) {
+        final hasUpcoming = byMonth[month]!
+            .any((e) => e.date != null && !e.date!.isBefore(now));
+        if (hasUpcoming) return month;
+      }
+      return null;
+    }, [months, selectedYear]);
+
+    final targetKey = useMemoized(() => GlobalKey(), [targetMonth]);
+
+    // Scroll to nearest upcoming month after first render
+    useEffect(() {
+      if (targetMonth == null) return null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = targetKey.currentContext;
+        if (ctx != null) {
+          Scrollable.ensureVisible(
+            ctx,
+            alignment: 0.0,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+      return null;
+    }, [targetMonth]);
 
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-      sliver: SliverList.builder(
-        itemCount: months.length,
-        itemBuilder: (context, index) {
-          final month = months[index];
-          final monthEvents = byMonth[month]!;
-          return _MonthSection(month: month, events: monthEvents);
-        },
+      sliver: SliverToBoxAdapter(
+        child: Column(
+          children: months.map((month) {
+            return _MonthSection(
+              key: month == targetMonth ? targetKey : null,
+              month: month,
+              events: byMonth[month]!,
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -78,13 +118,14 @@ class _MonthSection extends StatelessWidget {
   final int month;
   final List<EventModel> events;
 
-  const _MonthSection({required this.month, required this.events});
+  const _MonthSection({super.key, required this.month, required this.events});
 
   @override
   Widget build(BuildContext context) {
-    final monthName = DateFormat('MMMM', 'cs')
-        .format(DateTime(2000, month))
-        .toUpperCase();
+    final monthName = DateFormat(
+      'MMMM',
+      context.l10n.languageCode,
+    ).format(DateTime(2000, month)).toUpperCase();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,7 +142,9 @@ class _MonthSection extends StatelessWidget {
                     ),
               ),
               const SizedBox(width: 10),
-              Expanded(child: Divider(color: AppColors.primary.withValues(alpha: 0.3))),
+              Expanded(
+                child: Divider(color: AppColors.primary.withValues(alpha: 0.3)),
+              ),
               const SizedBox(width: 8),
               Text(
                 '${events.length}',
@@ -113,7 +156,10 @@ class _MonthSection extends StatelessWidget {
         ...events.map(
           (e) => Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: EventCard(event: e),
+            child: EventCard(
+              event: e,
+              onTap: () => context.go('/events/${e.id}'),
+            ),
           ),
         ),
       ],
@@ -135,7 +181,8 @@ class _YearPicker extends StatelessWidget {
       children: [
         IconButton(
           icon: const Icon(Icons.chevron_left),
-          onPressed: () => ref.read(selectedYearProvider.notifier).state = year - 1,
+          onPressed: () =>
+              ref.read(selectedYearProvider.notifier).state = year - 1,
         ),
         GestureDetector(
           onTap: () async {
@@ -150,13 +197,16 @@ class _YearPicker extends StatelessWidget {
           child: Text(
             '$year',
             style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                  color: year == currentYear ? AppColors.primary : context.colors.textPrimary,
+                  color: year == currentYear
+                      ? AppColors.primary
+                      : context.colors.textPrimary,
                 ),
           ),
         ),
         IconButton(
           icon: const Icon(Icons.chevron_right),
-          onPressed: () => ref.read(selectedYearProvider.notifier).state = year + 1,
+          onPressed: () =>
+              ref.read(selectedYearProvider.notifier).state = year + 1,
         ),
       ],
     );
@@ -173,7 +223,7 @@ class _YearDialog extends StatelessWidget {
     final years = List.generate(8, (i) => DateTime.now().year - 3 + i);
     return AlertDialog(
       backgroundColor: context.colors.surface,
-      title: const Text('Vybrat rok'),
+      title: Text(context.l10n.selectYear),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: years
@@ -203,17 +253,23 @@ class _ErrorView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.wifi_off_rounded, size: 64, color: context.colors.textMuted),
+          Icon(
+            Icons.wifi_off_rounded,
+            size: 64,
+            color: context.colors.textMuted,
+          ),
           const SizedBox(height: 16),
-          Text('Nepodařilo se načíst závody',
-              style: Theme.of(context).textTheme.headlineMedium),
+          Text(
+            context.l10n.eventsLoadFailed,
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
           const SizedBox(height: 8),
           Text(message, style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh),
-            label: const Text('Zkusit znovu'),
+            label: Text(context.l10n.retry),
           ),
         ],
       ),
@@ -232,7 +288,10 @@ class _EmptyView extends StatelessWidget {
         children: [
           Icon(Icons.flag_outlined, size: 64, color: context.colors.textMuted),
           const SizedBox(height: 16),
-          Text('Žádné závody', style: Theme.of(context).textTheme.headlineMedium),
+          Text(
+            context.l10n.noEvents,
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
         ],
       ),
     );

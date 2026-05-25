@@ -4,10 +4,8 @@ import '../../core/constants/api_constants.dart';
 import '../../core/network/dio_client.dart';
 import 'models/news_model.dart';
 
-final _dioProvider = Provider<Dio>((ref) => DioClient.create());
-
 final newsRepositoryProvider = Provider<NewsRepository>(
-  (ref) => NewsRepository(ref.read(_dioProvider)),
+  (ref) => NewsRepository(ref.read(dioProvider)),
 );
 
 class NewsPage {
@@ -27,9 +25,7 @@ class NewsRepository {
         queryParameters: {'page': page, 'ordering': '-publish_date'},
       );
       final paginated = PaginatedNews.fromJson(response.data);
-      final items = paginated.results
-          .where((n) => n.published)
-          .toList()
+      final items = paginated.results.where((n) => n.published).toList()
         ..sort((a, b) {
           final da = a.publishDate;
           final db = b.publishDate;
@@ -46,6 +42,15 @@ class NewsRepository {
 
   Future<NewsModel> fetchNewsDetail(String slugOrId) async {
     try {
+      final response = await _dio.get('${ApiConstants.news}$slugOrId/');
+      return NewsModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      if (e.response?.statusCode != 404) {
+        throw ApiException.fromDio(e);
+      }
+    }
+
+    try {
       final response = await _dio.get(
         ApiConstants.news,
         queryParameters: {'ordering': '-publish_date'},
@@ -53,7 +58,8 @@ class NewsRepository {
       final paginated = PaginatedNews.fromJson(response.data);
       return paginated.results.firstWhere(
         (n) => n.slug == slugOrId || n.id.toString() == slugOrId,
-        orElse: () => throw const ApiException('Článek nenalezen.', statusCode: 404),
+        orElse: () =>
+            throw const ApiException('Článek nenalezen.', statusCode: 404),
       );
     } on DioException catch (e) {
       throw ApiException.fromDio(e);

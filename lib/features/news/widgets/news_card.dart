@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/news_model.dart';
 
@@ -56,7 +57,8 @@ class _FeaturedCard extends HookWidget {
           duration: tilt.value == Offset.zero
               ? const Duration(milliseconds: 450)
               : const Duration(milliseconds: 80),
-          curve: tilt.value == Offset.zero ? Curves.easeOutBack : Curves.easeOut,
+          curve:
+              tilt.value == Offset.zero ? Curves.easeOutBack : Curves.easeOut,
           builder: (context, value, child) {
             final intensity = value.distance;
             return AnimatedScale(
@@ -64,44 +66,44 @@ class _FeaturedCard extends HookWidget {
               duration: const Duration(milliseconds: 120),
               curve: Curves.easeOut,
               child: Transform(
-              transform: Matrix4.identity()
-                ..setEntry(3, 2, 0.0015)
-                ..rotateX(-value.dy * 0.28)
-                ..rotateY(value.dx * 0.28),
-              alignment: Alignment.center,
-              child: Stack(
-                children: [
-                  child!,
-                  // Specular shine that moves with tilt
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: RadialGradient(
-                              center: Alignment(
-                                (-value.dx * 1.8).clamp(-1.5, 1.5),
-                                (-value.dy * 1.8).clamp(-1.5, 1.5),
-                              ),
-                              radius: 1.2,
-                              colors: [
-                                Colors.white.withValues(
-                                  alpha: (0.35 * intensity).clamp(0, 0.28),
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.0015)
+                  ..rotateX(-value.dy * 0.28)
+                  ..rotateY(value.dx * 0.28),
+                alignment: Alignment.center,
+                child: Stack(
+                  children: [
+                    child!,
+                    // Specular shine that moves with tilt
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: RadialGradient(
+                                center: Alignment(
+                                  (-value.dx * 1.8).clamp(-1.5, 1.5),
+                                  (-value.dy * 1.8).clamp(-1.5, 1.5),
                                 ),
-                                Colors.transparent,
-                              ],
-                              stops: const [0.0, 0.65],
+                                radius: 1.2,
+                                colors: [
+                                  Colors.white.withValues(
+                                    alpha: (0.35 * intensity).clamp(0, 0.28),
+                                  ),
+                                  Colors.transparent,
+                                ],
+                                stops: const [0.0, 0.65],
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),  // Transform
-            );  // AnimatedScale
+                  ],
+                ),
+              ), // Transform
+            ); // AnimatedScale
           },
           child: _FeaturedCardContent(news: news),
         ),
@@ -146,34 +148,72 @@ class _FeaturedCardContent extends StatelessWidget {
               child: CachedNetworkImage(
                 imageUrl: news.photo01Url!,
                 fit: BoxFit.cover,
-                placeholder: (_, __) => Container(color: context.colors.surfaceVariant),
-                errorWidget: (_, __, ___) => Container(color: context.colors.surfaceVariant),
+                placeholder: (_, __) =>
+                    Container(color: context.colors.surfaceVariant),
+                errorWidget: (_, __, ___) =>
+                    Container(color: context.colors.surfaceVariant),
               ),
             )
           else
             Container(color: context.colors.surfaceVariant),
 
-          // Gradient overlay
+          // Full-card contrast layer. The left and bottom scrims keep text readable
+          // even on bright posters or logos.
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.16),
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0.35, -0.25),
+                radius: 1.25,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: 0.28),
+                ],
+                stops: const [0.35, 1.0],
+              ),
+            ),
+          ),
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
                 colors: [
-                  Colors.transparent,
-                  Colors.black.withValues(alpha: 0.15),
-                  Colors.black.withValues(alpha: 0.75),
+                  Colors.black.withValues(alpha: 0.82),
+                  Colors.black.withValues(alpha: 0.55),
+                  Colors.black.withValues(alpha: 0.12),
                 ],
-                stops: const [0.3, 0.55, 1.0],
+                stops: const [0.0, 0.48, 1.0],
+              ),
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.92),
+                  Colors.black.withValues(alpha: 0.56),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.36, 0.78],
               ),
             ),
           ),
 
           // Top badge
-          const Positioned(
+          Positioned(
             top: 12,
             left: 12,
-            child: _Badge(label: 'Hlavní článek', color: AppColors.primary),
+            child: _Badge(
+              label: context.l10n.featuredArticle,
+              color: AppColors.primary,
+            ),
           ),
 
           // Bottom: title + meta
@@ -186,12 +226,17 @@ class _FeaturedCardContent extends StatelessWidget {
               children: [
                 Text(
                   news.title,
-                  maxLines: 3,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.headlineLarge!.copyWith(
                     color: Colors.white,
+                    height: 1.05,
                     shadows: [
-                      const Shadow(blurRadius: 12, color: Colors.black54),
+                      const Shadow(
+                        blurRadius: 16,
+                        color: Colors.black87,
+                        offset: Offset(0, 2),
+                      ),
                     ],
                   ),
                 ),
@@ -253,10 +298,16 @@ class _StandardCard extends HookWidget {
                     width: 110,
                     height: 110,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) =>
-                        Container(width: 110, height: 110, color: context.colors.surfaceVariant),
-                    errorWidget: (_, __, ___) =>
-                        Container(width: 110, height: 110, color: context.colors.surfaceVariant),
+                    placeholder: (_, __) => Container(
+                      width: 110,
+                      height: 110,
+                      color: context.colors.surfaceVariant,
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      width: 110,
+                      height: 110,
+                      color: context.colors.surfaceVariant,
+                    ),
                   ),
                 )
               else
@@ -264,8 +315,10 @@ class _StandardCard extends HookWidget {
                   width: 110,
                   height: 110,
                   color: context.colors.surfaceVariant,
-                  child: Icon(Icons.image_not_supported_outlined,
-                      color: context.colors.textMuted),
+                  child: Icon(
+                    Icons.image_not_supported_outlined,
+                    color: context.colors.textMuted,
+                  ),
                 ),
 
               // Text
@@ -305,31 +358,41 @@ class _MetaRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.bodySmall;
     final iconColor = context.colors.textMuted;
-    final date = news.publishDate != null ? _formatDate(news.publishDate!) : null;
+    final date = news.publishDate != null
+        ? _formatDate(context, news.publishDate!)
+        : null;
 
     return Wrap(
       spacing: 12,
       children: [
         if (date != null)
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.calendar_today_outlined, size: 12, color: iconColor),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.calendar_today_outlined, size: 12, color: iconColor),
+              const SizedBox(width: 4),
+              Text(date, style: style),
+            ],
+          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.timer_outlined, size: 12, color: iconColor),
             const SizedBox(width: 4),
-            Text(date, style: style),
-          ]),
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.timer_outlined, size: 12, color: iconColor),
-          const SizedBox(width: 4),
-          Text('${news.timeToRead} min', style: style),
-        ]),
+            Text('${news.timeToRead} ${context.l10n.minutesShort}',
+                style: style),
+          ],
+        ),
         if (news.publishedAudio)
           const Icon(Icons.headphones, size: 14, color: AppColors.primary),
       ],
     );
   }
 
-  String _formatDate(String dateStr) {
+  String _formatDate(BuildContext context, String dateStr) {
     try {
-      return DateFormat('d. M. yyyy', 'cs').format(DateTime.parse(dateStr));
+      return DateFormat('d. M. yyyy', context.l10n.languageCode)
+          .format(DateTime.parse(dateStr));
     } catch (_) {
       return dateStr;
     }
@@ -349,7 +412,11 @@ class _Badge extends StatelessWidget {
         color: color,
         borderRadius: BorderRadius.circular(6),
         boxShadow: [
-          BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: color.withValues(alpha: 0.5),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Text(

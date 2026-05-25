@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../l10n/app_localizations.dart';
 import 'app_colors.dart';
 import 'theme_provider.dart';
 
@@ -8,7 +9,8 @@ class ThemeSettingsTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final current = ref.watch(themeModeProvider).valueOrNull ?? AppThemeMode.system;
+    final current =
+        ref.watch(themeModeProvider).valueOrNull ?? AppThemeMode.system;
     final colors = context.colors;
 
     return Container(
@@ -25,7 +27,10 @@ class ThemeSettingsTile extends ConsumerWidget {
             children: [
               Icon(Icons.contrast, color: colors.textMuted, size: 20),
               const SizedBox(width: 12),
-              Text('Vzhled aplikace', style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                context.l10n.themeSettings,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -38,7 +43,8 @@ class ThemeSettingsTile extends ConsumerWidget {
                   child: _ModeButton(
                     mode: mode,
                     selected: selected,
-                    onTap: () => ref.read(themeModeProvider.notifier).setMode(mode),
+                    onTap: () =>
+                        ref.read(themeModeProvider.notifier).setMode(mode),
                   ),
                 ),
               );
@@ -90,7 +96,7 @@ class _ModeButton extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              mode.label,
+              mode.label(context.l10n),
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,

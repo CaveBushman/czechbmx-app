@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../riders/models/rider_model.dart';
+import '../models/ranking_model.dart';
 import '../providers/rankings_provider.dart';
 
 class RankingsScreen extends HookConsumerWidget {
@@ -12,7 +13,7 @@ class RankingsScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ridersAsync = ref.watch(allRidersProvider);
+    final categoriesAsync = ref.watch(rankingCategoriesProvider);
 
     return DefaultTabController(
       length: 2,
@@ -22,36 +23,34 @@ class RankingsScreen extends HookConsumerWidget {
             SliverAppBar(
               floating: true,
               snap: true,
-              title: const Text('Žebříček'),
-              bottom: const TabBar(
+              title: Text(context.l10n.rankings),
+              bottom: TabBar(
                 tabs: [
-                  Tab(text: '20"'),
-                  Tab(text: '24"'),
+                  Tab(text: context.l10n.category20),
+                  Tab(text: context.l10n.category24),
                 ],
                 indicatorColor: AppColors.primary,
                 labelColor: AppColors.primary,
               ),
             ),
           ],
-          body: ridersAsync.when(
+          body: categoriesAsync.when(
             loading: () => const Center(
               child: CircularProgressIndicator(color: AppColors.primary),
             ),
             error: (err, _) => _ErrorView(
-              message: err.toString(),
-              onRetry: () => ref.read(allRidersProvider.notifier).refresh(),
+              error: err,
+              onRetry: () => ref.read(rankingCategoriesProvider.notifier).refresh(),
             ),
-            data: (riders) => TabBarView(
+            data: (allCategories) => TabBarView(
               children: [
                 _RankingTab(
-                  riders: riders,
-                  is24: false,
-                  categories: _activeCategories(riders, false),
+                  categories: categories20(allCategories),
+                  displayLabel: (c) => c,
                 ),
                 _RankingTab(
-                  riders: riders,
-                  is24: true,
-                  categories: _activeCategories(riders, true),
+                  categories: categories24(allCategories),
+                  displayLabel: displayCategory24,
                 ),
               ],
             ),
@@ -60,41 +59,26 @@ class RankingsScreen extends HookConsumerWidget {
       ),
     );
   }
-
-  // Only include categories that have at least one rider with points > 0
-  List<String> _activeCategories(List<RiderModel> riders, bool is24) {
-    final allCats = is24 ? kCategories24 : kCategories20;
-    return allCats.where((cat) {
-      return riders.any((r) {
-        if (!r.isActive) return false;
-        if (is24) return r.class24 == cat && r.points24 > 0;
-        return r.class20 == cat && r.points20 > 0;
-      });
-    }).toList();
-  }
 }
 
-// ── Tab for 20" or 24" ───────────────────────────────────────────────────────
+// ── Tab ───────────────────────────────────────────────────────────────────────
 
-class _RankingTab extends HookWidget {
-  final List<RiderModel> riders;
-  final bool is24;
+class _RankingTab extends HookConsumerWidget {
   final List<String> categories;
+  final String Function(String) displayLabel;
 
   const _RankingTab({
-    required this.riders,
-    required this.is24,
     required this.categories,
+    required this.displayLabel,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final selectedCat = useState(categories.isNotEmpty ? categories.first : null);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = useState(categories.isNotEmpty ? categories.first : null);
 
-    // Re-select if categories change (e.g., refresh)
     useEffect(() {
-      if (selectedCat.value == null && categories.isNotEmpty) {
-        selectedCat.value = categories.first;
+      if (selected.value == null && categories.isNotEmpty) {
+        selected.value = categories.first;
       }
       return null;
     }, [categories]);
@@ -106,120 +90,130 @@ class _RankingTab extends HookWidget {
           children: [
             Icon(Icons.emoji_events_outlined, size: 64, color: context.colors.textMuted),
             const SizedBox(height: 16),
-            Text('Žádná data', style: Theme.of(context).textTheme.headlineMedium),
+            Text(context.l10n.noData, style: Theme.of(context).textTheme.headlineMedium),
           ],
         ),
       );
     }
 
-    final ranked = _buildRanking(riders, selectedCat.value, is24);
-    final leaderPoints = ranked.isNotEmpty
-        ? (is24 ? ranked.first.points24 : ranked.first.points20)
-        : 1;
-
     return Column(
       children: [
-        // Category chips
-        SizedBox(
-          height: 48,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            itemCount: categories.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (context, i) {
-              final cat = categories[i];
-              final selected = cat == selectedCat.value;
-              return GestureDetector(
-                onTap: () => selectedCat.value = cat,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: selected ? AppColors.primary : context.colors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: selected ? AppColors.primary : context.colors.border,
-                    ),
-                  ),
-                  child: Text(
-                    cat,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: selected ? Colors.white : context.colors.textSecondary,
-                    ),
-                  ),
-                ),
-              );
-            },
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceVariant,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: context.colors.border),
+            ),
+            child: DropdownButton<String>(
+              value: selected.value,
+              isExpanded: true,
+              underline: const SizedBox.shrink(),
+              dropdownColor: context.colors.card,
+              icon: const Icon(Icons.expand_more, color: AppColors.primary),
+              style: TextStyle(
+                color: context.colors.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+              items: categories
+                  .map((c) => DropdownMenuItem(
+                        value: c,
+                        child: Text(
+                          displayLabel(c),
+                          style: TextStyle(color: context.colors.textPrimary),
+                        ),
+                      ))
+                  .toList(),
+              onChanged: (v) => selected.value = v,
+            ),
           ),
         ),
         Divider(height: 1, color: context.colors.divider),
-        // Leaderboard
         Expanded(
-          child: ranked.isEmpty
-              ? Center(
-                  child: Text(
-                    'Žádní jezdci v kategorii',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                  itemCount: ranked.length,
-                  itemBuilder: (context, i) => _RankRow(
-                    rider: ranked[i],
-                    position: i + 1,
-                    is24: is24,
-                    leaderPoints: leaderPoints,
-                  ),
-                ),
+          child: selected.value == null
+              ? const SizedBox.shrink()
+              : _RankingList(category: selected.value!),
         ),
       ],
     );
   }
+}
 
-  List<RiderModel> _buildRanking(
-    List<RiderModel> riders,
-    String? category,
-    bool is24,
-  ) {
-    if (category == null) return [];
-    final filtered = riders.where((r) {
-      if (!r.isActive) return false;
-      if (is24) return r.class24 == category && r.points24 > 0;
-      return r.class20 == category && r.points20 > 0;
-    }).toList();
-    filtered.sort((a, b) => is24
-        ? b.points24.compareTo(a.points24)
-        : b.points20.compareTo(a.points20));
-    return filtered;
+// ── Ranking list for one category ─────────────────────────────────────────────
+
+class _RankingList extends ConsumerWidget {
+  final String category;
+  const _RankingList({required this.category});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rankingAsync = ref.watch(rankingProvider(category));
+
+    return rankingAsync.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+      error: (err, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.wifi_off_rounded, size: 48, color: context.colors.textMuted),
+              const SizedBox(height: 12),
+              Text(err.toString(),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () => ref.invalidate(rankingProvider(category)),
+                icon: const Icon(Icons.refresh),
+                label: Text(context.l10n.retry),
+              ),
+            ],
+          ),
+        ),
+      ),
+      data: (riders) {
+        if (riders.isEmpty) {
+          return Center(
+            child: Text(
+              context.l10n.noRidersInCategory,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          );
+        }
+        final leaderPoints = riders.first.points;
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          itemCount: riders.length,
+          itemBuilder: (context, i) => _RankRow(
+            rider: riders[i],
+            leaderPoints: leaderPoints,
+          ),
+        );
+      },
+    );
   }
 }
 
-// ── Rank row ─────────────────────────────────────────────────────────────────
+// ── Rank row ──────────────────────────────────────────────────────────────────
 
-class _RankRow extends StatelessWidget {
-  final RiderModel rider;
-  final int position;
-  final bool is24;
+class _RankRow extends HookWidget {
+  final RankedRider rider;
   final int leaderPoints;
 
-  const _RankRow({
-    required this.rider,
-    required this.position,
-    required this.is24,
-    required this.leaderPoints,
-  });
+  const _RankRow({required this.rider, required this.leaderPoints});
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final points = is24 ? rider.points24 : rider.points20;
-    final ratio = leaderPoints > 0 ? points / leaderPoints : 0.0;
-
-    final posColor = switch (position) {
+    final pressed = useState(false);
+    final ratio = leaderPoints > 0 ? rider.points / leaderPoints : 0.0;
+    final posColor = switch (rider.rank) {
       1 => const Color(0xFFFFD700),
       2 => const Color(0xFFC0C0C0),
       3 => const Color(0xFFCD7F32),
@@ -228,38 +222,51 @@ class _RankRow extends StatelessWidget {
 
     return GestureDetector(
       onTap: () => context.go('/riders/${rider.uciId}'),
-      child: Container(
+      onTapDown: (_) => pressed.value = true,
+      onTapUp: (_) => pressed.value = false,
+      onTapCancel: () => pressed.value = false,
+      child: AnimatedScale(
+        scale: pressed.value ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
         decoration: BoxDecoration(
           color: colors.card,
           borderRadius: BorderRadius.circular(10),
-          border: position <= 3
+          boxShadow: [
+            if (colors.brightness == Brightness.light)
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+          ],
+          border: rider.rank <= 3
               ? Border.all(color: posColor.withValues(alpha: 0.4))
               : null,
         ),
         child: Row(
           children: [
-            // Position
             SizedBox(
               width: 32,
               child: Text(
-                '$position',
+                '${rider.rank}',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: position <= 3 ? 18 : 15,
+                  fontSize: rider.rank <= 3 ? 18 : 15,
                   fontWeight: FontWeight.w800,
                   color: posColor,
                 ),
               ),
             ),
             const SizedBox(width: 10),
-            // Avatar
             ClipRRect(
               borderRadius: BorderRadius.circular(22),
-              child: rider.photoUrl != null
+              child: rider.photoAbsoluteUrl != null
                   ? CachedNetworkImage(
-                      imageUrl: rider.photoUrl!,
+                      imageUrl: rider.photoAbsoluteUrl!,
                       width: 44,
                       height: 44,
                       fit: BoxFit.cover,
@@ -268,7 +275,6 @@ class _RankRow extends StatelessWidget {
                   : _avatar(rider, colors),
             ),
             const SizedBox(width: 12),
-            // Name + bar
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,25 +283,29 @@ class _RankRow extends StatelessWidget {
                     rider.fullName,
                     style: Theme.of(context).textTheme.titleSmall!.copyWith(
                           fontWeight: FontWeight.w700,
+                          color: colors.textPrimary,
                         ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (rider.city != null && rider.city!.isNotEmpty)
+                  if (rider.club != null && rider.club!.isNotEmpty)
                     Text(
-                      rider.city!,
-                      style: TextStyle(fontSize: 11, color: colors.textMuted),
+                      rider.club!,
+                      style: TextStyle(fontSize: 11, color: colors.textSecondary),
                     ),
                   const SizedBox(height: 5),
-                  // Points bar
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: ratio.clamp(0.0, 1.0),
                       minHeight: 4,
-                      backgroundColor: colors.surfaceVariant,
+                      backgroundColor: colors.brightness == Brightness.dark
+                          ? const Color(0xFF334155)
+                          : colors.surfaceVariant,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        position == 1 ? AppColors.primary : AppColors.primary.withValues(alpha: 0.6),
+                        rider.rank == 1
+                            ? AppColors.primary
+                            : AppColors.primary.withValues(alpha: 0.72),
                       ),
                     ),
                   ),
@@ -303,31 +313,35 @@ class _RankRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            // Points
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '$points',
+                  '${rider.points}',
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
-                    color: position <= 3 ? posColor : colors.textPrimary,
+                    color: rider.rank <= 3 ? posColor : colors.textPrimary,
                   ),
                 ),
                 Text(
-                  'bodů',
-                  style: TextStyle(fontSize: 10, color: colors.textMuted),
+                  context.l10n.points,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: colors.textSecondary,
+                  ),
                 ),
               ],
             ),
           ],
         ),
       ),
+      ),
     );
   }
 
-  Widget _avatar(RiderModel rider, AppColorPalette colors) {
+  Widget _avatar(RankedRider rider, AppColorPalette colors) {
     return Container(
       width: 44,
       height: 44,
@@ -346,13 +360,13 @@ class _RankRow extends StatelessWidget {
   }
 }
 
-// ── Error state ──────────────────────────────────────────────────────────────
+// ── Error state ───────────────────────────────────────────────────────────────
 
 class _ErrorView extends StatelessWidget {
-  final String message;
+  final Object error;
   final VoidCallback onRetry;
 
-  const _ErrorView({required this.message, required this.onRetry});
+  const _ErrorView({required this.error, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -364,18 +378,22 @@ class _ErrorView extends StatelessWidget {
           children: [
             Icon(Icons.wifi_off_rounded, size: 64, color: context.colors.textMuted),
             const SizedBox(height: 16),
-            Text('Nepodařilo se načíst žebříček',
-                style: Theme.of(context).textTheme.headlineMedium,
-                textAlign: TextAlign.center),
+            Text(
+              context.l10n.rankingsLoadFailed,
+              style: Theme.of(context).textTheme.headlineMedium,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 8),
-            Text(message,
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center),
+            Text(
+              error.toString(),
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('Zkusit znovu'),
+              label: Text(context.l10n.retry),
             ),
           ],
         ),

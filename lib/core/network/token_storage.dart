@@ -62,9 +62,6 @@ class TokenStorage {
       return;
     }
     final prefs = await SharedPreferences.getInstance();
-    await Future.wait([
-      prefs.remove(_accessKey),
-      prefs.remove(_refreshKey),
-    ]);
+    await Future.wait([prefs.remove(_accessKey), prefs.remove(_refreshKey)]);
   }
 }

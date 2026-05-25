@@ -18,6 +18,8 @@ class RiderModel {
   final String? class24;
   final String? city;
   final String? plateNumber;
+  final String? transponder20;
+  final String? transponder24;
   final int points20;
   final int points24;
   final String? ranking20;
@@ -41,6 +43,8 @@ class RiderModel {
     this.class24,
     this.city,
     this.plateNumber,
+    this.transponder20,
+    this.transponder24,
     this.points20 = 0,
     this.points24 = 0,
     this.ranking20,
@@ -67,7 +71,8 @@ class RiderModel {
     if (dob == null) return null;
     final now = DateTime.now();
     int age = now.year - dob.year;
-    if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+    if (now.month < dob.month ||
+        (now.month == dob.month && now.day < dob.day)) {
       age--;
     }
     return age;
@@ -91,7 +96,10 @@ class RiderModel {
       class20: json['class_20'] as String?,
       class24: json['class_24'] as String?,
       city: json['city'] as String?,
-      plateNumber: json['plate_number']?.toString(),
+      plateNumber: (json['plate_text'] ?? json['plate_number'] ?? json['plate'])
+          ?.toString(),
+      transponder20: json['transponder_20']?.toString(),
+      transponder24: json['transponder_24']?.toString(),
       points20: json['points_20'] as int? ?? 0,
       points24: json['points_24'] as int? ?? 0,
       ranking20: json['ranking_20']?.toString(),
@@ -105,11 +113,17 @@ class PaginatedRiders {
   final String? next;
   final List<RiderModel> results;
 
-  const PaginatedRiders({required this.count, this.next, required this.results});
+  const PaginatedRiders({
+    required this.count,
+    this.next,
+    required this.results,
+  });
 
   factory PaginatedRiders.fromJson(dynamic json) {
     if (json is List) {
-      final items = json.map((e) => RiderModel.fromJson(e as Map<String, dynamic>)).toList();
+      final items = json
+          .map((e) => RiderModel.fromJson(e as Map<String, dynamic>))
+          .toList();
       return PaginatedRiders(count: items.length, results: items);
     }
     final map = json as Map<String, dynamic>;

@@ -5,6 +5,8 @@ import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/widgets/in_app_browser.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/news_model.dart';
 import '../providers/news_provider.dart';
@@ -21,12 +23,17 @@ class NewsDetailScreen extends HookConsumerWidget {
 
     return newsAsync.when(
       loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       ),
       error: (err, _) => Scaffold(
         appBar: AppBar(),
         body: Center(
-          child: Text(err.toString(), style: Theme.of(context).textTheme.bodyMedium),
+          child: Text(
+            err.toString(),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
         ),
       ),
       data: (news) => _NewsDetailBody(news: news),
@@ -61,7 +68,11 @@ class _NewsDetailBody extends HookWidget {
             title: AnimatedOpacity(
               opacity: showTitle.value ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 200),
-              child: Text(news.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+              child: Text(
+                news.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
@@ -70,11 +81,16 @@ class _NewsDetailBody extends HookWidget {
                   if (news.photo01Url != null)
                     Hero(
                       tag: 'news_${news.id}',
-                      child: CachedNetworkImage(imageUrl: news.photo01Url!, fit: BoxFit.cover),
+                      child: CachedNetworkImage(
+                        imageUrl: news.photo01Url!,
+                        fit: BoxFit.cover,
+                      ),
                     )
                   else
                     Container(color: colors.surfaceVariant),
-                  DecoratedBox(decoration: BoxDecoration(gradient: colors.cardOverlay)),
+                  DecoratedBox(
+                    decoration: BoxDecoration(gradient: colors.cardOverlay),
+                  ),
                 ],
               ),
             ),
@@ -87,7 +103,10 @@ class _NewsDetailBody extends HookWidget {
                 children: [
                   _MetaRow(news: news),
                   const SizedBox(height: 16),
-                  Text(news.title, style: Theme.of(context).textTheme.displayMedium),
+                  Text(
+                    news.title,
+                    style: Theme.of(context).textTheme.displayMedium,
+                  ),
                   if (news.publishedAudio && news.audioUrl != null) ...[
                     const SizedBox(height: 20),
                     NewsAudioPlayer(url: news.audioUrl!),
@@ -124,35 +143,47 @@ class _MetaRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.bodySmall;
     final iconColor = context.colors.textMuted;
-    final date = news.publishDate != null ? _fmt(news.publishDate!) : null;
+    final date =
+        news.publishDate != null ? _fmt(context, news.publishDate!) : null;
 
     return Wrap(
       spacing: 16,
       runSpacing: 4,
       children: [
         if (date != null)
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.calendar_today_outlined, size: 14, color: iconColor),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.calendar_today_outlined, size: 14, color: iconColor),
+              const SizedBox(width: 5),
+              Text(date, style: style),
+            ],
+          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.timer_outlined, size: 14, color: iconColor),
             const SizedBox(width: 5),
-            Text(date, style: style),
-          ]),
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.timer_outlined, size: 14, color: iconColor),
-          const SizedBox(width: 5),
-          Text('${news.timeToRead} min čtení', style: style),
-        ]),
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.visibility_outlined, size: 14, color: iconColor),
-          const SizedBox(width: 5),
-          Text('${news.viewCount} zhlédnutí', style: style),
-        ]),
+            Text('${news.timeToRead} ${context.l10n.minutesReadSuffix}',
+                style: style),
+          ],
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.visibility_outlined, size: 14, color: iconColor),
+            const SizedBox(width: 5),
+            Text('${news.viewCount} ${context.l10n.viewsSuffix}', style: style),
+          ],
+        ),
       ],
     );
   }
 
-  String _fmt(String dateStr) {
+  String _fmt(BuildContext context, String dateStr) {
     try {
-      return DateFormat('d. MMMM yyyy', 'cs').format(DateTime.parse(dateStr));
+      return DateFormat('d. MMMM yyyy', context.l10n.languageCode)
+          .format(DateTime.parse(dateStr));
     } catch (_) {
       return dateStr;
     }
@@ -181,8 +212,13 @@ class _HtmlContent extends StatelessWidget {
       textStyle: textStyle,
       onTapUrl: (url) async {
         final uri = Uri.tryParse(url);
-        if (uri != null && await canLaunchUrl(uri)) {
+        final isWebUrl = uri?.scheme == 'http' || uri?.scheme == 'https';
+        if (uri == null || !isWebUrl) return false;
+        final isYt = uri.host.contains('youtube.com') || uri.host.contains('youtu.be');
+        if (isYt) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else if (context.mounted) {
+          openInApp(context, url);
         }
         return true;
       },
@@ -209,18 +245,26 @@ class _AdditionalPhotos extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final photos = [news.photo02Url, news.photo03Url].whereType<String>().toList();
+    final photos = [
+      news.photo02Url,
+      news.photo03Url,
+    ].whereType<String>().toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Fotogalerie', style: Theme.of(context).textTheme.titleLarge),
+        Text(context.l10n.gallery,
+            style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 12),
         ...photos.map(
           (url) => Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: CachedNetworkImage(imageUrl: url, width: double.infinity, fit: BoxFit.cover),
+              child: CachedNetworkImage(
+                imageUrl: url,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
             ),
           ),
         ),

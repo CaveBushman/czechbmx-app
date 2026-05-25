@@ -7,7 +7,10 @@ class AuthInterceptor extends Interceptor {
   final Dio _refreshDio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
 
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+  void onRequest(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
     final token = await TokenStorage.getAccess();
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';

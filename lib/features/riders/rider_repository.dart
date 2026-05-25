@@ -4,10 +4,8 @@ import '../../core/constants/api_constants.dart';
 import '../../core/network/dio_client.dart';
 import 'models/rider_model.dart';
 
-final _dioProvider = Provider<Dio>((ref) => DioClient.create());
-
 final riderRepositoryProvider = Provider<RiderRepository>(
-  (ref) => RiderRepository(ref.read(_dioProvider)),
+  (ref) => RiderRepository(ref.read(dioProvider)),
 );
 
 class RidersFilter {
@@ -17,14 +15,21 @@ class RidersFilter {
   final bool? is24;
   final bool? isElite;
 
-  const RidersFilter({this.search, this.gender, this.is20, this.is24, this.isElite});
+  const RidersFilter({
+    this.search,
+    this.gender,
+    this.is20,
+    this.is24,
+    this.isElite,
+  });
 
-  Map<String, dynamic> toQueryParams() => {
+  Map<String, dynamic> toQueryParams({int? page}) => {
         if (search != null && search!.isNotEmpty) 'search': search,
         if (gender != null) 'gender': gender,
         if (is20 != null) 'is_20': is20,
         if (is24 != null) 'is_24': is24,
         if (isElite != null) 'is_elite': isElite,
+        if (page != null) 'page': page,
         'ordering': 'last_name',
       };
 }
@@ -36,11 +41,24 @@ class RiderRepository {
 
   Future<List<RiderModel>> fetchRiders({RidersFilter? filter}) async {
     try {
-      final response = await _dio.get(
-        ApiConstants.riders,
-        queryParameters: filter?.toQueryParams(),
-      );
-      return PaginatedRiders.fromJson(response.data).results;
+      final riders = <RiderModel>[];
+      var page = 1;
+      var hasMore = true;
+
+      while (hasMore) {
+        final response = await _dio.get(
+          ApiConstants.riders,
+          queryParameters: (filter ?? const RidersFilter()).toQueryParams(
+            page: page,
+          ),
+        );
+        final paginated = PaginatedRiders.fromJson(response.data);
+        riders.addAll(paginated.results);
+        hasMore = paginated.next != null;
+        page++;
+      }
+
+      return riders;
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }

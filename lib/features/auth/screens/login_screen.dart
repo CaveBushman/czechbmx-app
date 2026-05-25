@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../providers/auth_provider.dart';
 
@@ -20,16 +21,15 @@ class LoginScreen extends HookConsumerWidget {
       final email = emailCtrl.text.trim();
       final password = passwordCtrl.text;
       if (email.isEmpty || password.isEmpty) {
-        errorMsg.value = 'Vyplňte e-mail a heslo.';
+        errorMsg.value = context.l10n.fillEmailPassword;
         return;
       }
       isLoading.value = true;
       errorMsg.value = null;
       try {
-        await ref.read(authProvider.notifier).login(
-              email: email,
-              password: password,
-            );
+        await ref
+            .read(authProvider.notifier)
+            .login(email: email, password: password);
         final authState = ref.read(authProvider).valueOrNull;
         if (authState is AuthAuthenticated && context.mounted) {
           context.go('/news');
@@ -79,10 +79,13 @@ class LoginScreen extends HookConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                Text('Czech BMX', style: Theme.of(context).textTheme.displayMedium),
+                Text(
+                  context.l10n.appTitle,
+                  style: Theme.of(context).textTheme.displayMedium,
+                ),
                 const SizedBox(height: 6),
                 Text(
-                  'Přihlašte se ke svému účtu',
+                  context.l10n.loginPrompt,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 40),
@@ -94,16 +97,25 @@ class LoginScreen extends HookConsumerWidget {
                     decoration: BoxDecoration(
                       color: AppColors.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+                      border: Border.all(
+                        color: AppColors.error.withValues(alpha: 0.4),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: AppColors.error, size: 18),
+                        const Icon(
+                          Icons.error_outline,
+                          color: AppColors.error,
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             errorMsg.value!,
-                            style: const TextStyle(color: AppColors.error, fontSize: 14),
+                            style: const TextStyle(
+                              color: AppColors.error,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ],
@@ -115,7 +127,7 @@ class LoginScreen extends HookConsumerWidget {
                 // Email
                 _Field(
                   controller: emailCtrl,
-                  label: 'E-mail',
+                  label: context.l10n.email,
                   icon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   colors: colors,
@@ -130,7 +142,7 @@ class LoginScreen extends HookConsumerWidget {
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => submit(),
                   decoration: _fieldDecoration(
-                    label: 'Heslo',
+                    label: context.l10n.password,
                     icon: Icons.lock_outline,
                     colors: colors,
                   ).copyWith(
@@ -162,14 +174,18 @@ class LoginScreen extends HookConsumerWidget {
                               color: Colors.white,
                             ),
                           )
-                        : const Text('Přihlásit se'),
+                        : Text(context.l10n.login),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => context.go('/register'),
+                  child: Text(context.l10n.noAccount),
+                ),
                 TextButton(
                   onPressed: () => context.go('/news'),
                   child: Text(
-                    'Pokračovat bez přihlášení',
+                    context.l10n.continueWithoutLogin,
                     style: TextStyle(color: colors.textMuted),
                   ),
                 ),

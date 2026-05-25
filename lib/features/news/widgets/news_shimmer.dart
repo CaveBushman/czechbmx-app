@@ -11,7 +11,7 @@ class NewsListShimmer extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       itemCount: 6,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, __) => _NewsCardSkeleton(),
+      itemBuilder: (_, __) => const _NewsCardSkeleton(),
     );
   }
 }
@@ -38,7 +38,9 @@ class _NewsCardSkeleton extends StatelessWidget {
               height: 140,
               decoration: BoxDecoration(
                 color: colors.surface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
+                ),
               ),
             ),
             Padding(
@@ -46,7 +48,11 @@ class _NewsCardSkeleton extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(height: 16, width: double.infinity, color: colors.surface),
+                  Container(
+                    height: 16,
+                    width: double.infinity,
+                    color: colors.surface,
+                  ),
                   const SizedBox(height: 8),
                   Container(height: 14, width: 180, color: colors.surface),
                 ],

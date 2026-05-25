@@ -8,16 +8,58 @@ class AppTheme {
 
   static TextTheme _textTheme(Color primary, Color secondary, Color muted) {
     return GoogleFonts.barlowTextTheme().copyWith(
-      displayLarge: GoogleFonts.barlow(fontSize: 32, fontWeight: FontWeight.w800, color: primary, letterSpacing: -0.5),
-      displayMedium: GoogleFonts.barlow(fontSize: 26, fontWeight: FontWeight.w700, color: primary),
-      headlineLarge: GoogleFonts.barlow(fontSize: 22, fontWeight: FontWeight.w700, color: primary),
-      headlineMedium: GoogleFonts.barlow(fontSize: 18, fontWeight: FontWeight.w600, color: primary),
-      titleLarge: GoogleFonts.barlow(fontSize: 16, fontWeight: FontWeight.w600, color: primary),
-      titleMedium: GoogleFonts.barlow(fontSize: 14, fontWeight: FontWeight.w600, color: primary),
-      bodyLarge: GoogleFonts.barlow(fontSize: 16, fontWeight: FontWeight.w400, color: primary),
-      bodyMedium: GoogleFonts.barlow(fontSize: 14, fontWeight: FontWeight.w400, color: secondary),
-      bodySmall: GoogleFonts.barlow(fontSize: 12, fontWeight: FontWeight.w400, color: muted),
-      labelLarge: GoogleFonts.barlow(fontSize: 14, fontWeight: FontWeight.w600, color: primary, letterSpacing: 0.5),
+      displayLarge: GoogleFonts.barlow(
+        fontSize: 32,
+        fontWeight: FontWeight.w800,
+        color: primary,
+        letterSpacing: -0.5,
+      ),
+      displayMedium: GoogleFonts.barlow(
+        fontSize: 26,
+        fontWeight: FontWeight.w700,
+        color: primary,
+      ),
+      headlineLarge: GoogleFonts.barlow(
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        color: primary,
+      ),
+      headlineMedium: GoogleFonts.barlow(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: primary,
+      ),
+      titleLarge: GoogleFonts.barlow(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: primary,
+      ),
+      titleMedium: GoogleFonts.barlow(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: primary,
+      ),
+      bodyLarge: GoogleFonts.barlow(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: primary,
+      ),
+      bodyMedium: GoogleFonts.barlow(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        color: secondary,
+      ),
+      bodySmall: GoogleFonts.barlow(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        color: muted,
+      ),
+      labelLarge: GoogleFonts.barlow(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: primary,
+        letterSpacing: 0.5,
+      ),
     );
   }
 
@@ -84,8 +126,8 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: palette.surface,
         indicatorColor: AppColors.primary.withValues(alpha: 0.15),
-        labelTextStyle: WidgetStateProperty.resolveWith((states) =>
-          GoogleFonts.barlow(
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => GoogleFonts.barlow(
             fontSize: 11,
             fontWeight: FontWeight.w600,
             color: states.contains(WidgetState.selected)
@@ -101,7 +143,11 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: EdgeInsets.zero,
       ),
-      dividerTheme: DividerThemeData(color: palette.divider, thickness: 1, space: 1),
+      dividerTheme: DividerThemeData(
+        color: palette.divider,
+        thickness: 1,
+        space: 1,
+      ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,

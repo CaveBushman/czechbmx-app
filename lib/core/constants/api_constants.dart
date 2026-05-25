@@ -1,8 +1,14 @@
 class ApiConstants {
   ApiConstants._();
 
-  static const String baseUrl = 'https://czechbmx.cz';
-  static const String mediaUrl = 'https://czechbmx.cz';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://czechbmx.cz',
+  );
+  static const String mediaUrl = String.fromEnvironment(
+    'MEDIA_BASE_URL',
+    defaultValue: baseUrl,
+  );
 
   static const String news = '/api/news/';
   static const String events = '/api/events/';
@@ -12,9 +18,31 @@ class ApiConstants {
   static const String authLogout = '/api/auth/logout/';
   static const String authMe = '/api/auth/me/';
   static const String authRefresh = '/api/auth/token/refresh/';
+  static const String authRegister = '/api/auth/register/';
+  static const String authPasswordReset = '/api/auth/password/reset/';
+  static const String authPasswordResetConfirm = '/api/auth/password/reset/confirm/';
+  static const String authPasswordChange = '/api/auth/password/change/';
+
+  static const String rankingCategories = '/api/ranking/categories/';
+  static const String ranking = '/api/ranking/';
+
+  static const String entriesMy = '/api/entries/my/';
+  static String entryCancel(int id) => '/api/entries/$id/cancel/';
+  static String eventEntryInfo(int id) => '/api/events/$id/entry-info/';
+  static String eventEnter(int id) => '/api/events/$id/enter/';
+
+  static const String shopCategories = '/api/shop/categories/';
+  static const String shopProducts = '/api/shop/products/';
+  static String shopProduct(String slug) => '/api/shop/products/$slug/';
+  static const String shopCheckout = '/api/shop/checkout/';
 
   static String mediaPath(String relativePath) {
     if (relativePath.startsWith('http')) return relativePath;
-    return '$mediaUrl$relativePath';
+    final normalizedBase = mediaUrl.endsWith('/')
+        ? mediaUrl.substring(0, mediaUrl.length - 1)
+        : mediaUrl;
+    final normalizedPath =
+        relativePath.startsWith('/') ? relativePath : '/$relativePath';
+    return '$normalizedBase$normalizedPath';
   }
 }

@@ -4,10 +4,8 @@ import '../../core/constants/api_constants.dart';
 import '../../core/network/dio_client.dart';
 import 'models/event_model.dart';
 
-final _dioProvider = Provider<Dio>((ref) => DioClient.create());
-
 final eventRepositoryProvider = Provider<EventRepository>(
-  (ref) => EventRepository(ref.read(_dioProvider)),
+  (ref) => EventRepository(ref.read(dioProvider)),
 );
 
 class EventRepository {
@@ -18,14 +16,22 @@ class EventRepository {
   Future<List<EventModel>> fetchEvents({int? year}) async {
     try {
       final targetYear = year ?? DateTime.now().year;
-      final response = await _dio.get(
-        ApiConstants.events,
-        queryParameters: {'ordering': 'date'},
-      );
-      final paginated = PaginatedEvents.fromJson(response.data);
-      return paginated.results
-          .where((e) => e.date?.year == targetYear)
-          .toList();
+      final events = <EventModel>[];
+      var page = 1;
+      var hasMore = true;
+
+      while (hasMore) {
+        final response = await _dio.get(
+          ApiConstants.events,
+          queryParameters: {'ordering': 'date', 'page': page},
+        );
+        final paginated = PaginatedEvents.fromJson(response.data);
+        events.addAll(paginated.results);
+        hasMore = paginated.next != null;
+        page++;
+      }
+
+      return events.where((e) => e.date?.year == targetYear).toList();
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }

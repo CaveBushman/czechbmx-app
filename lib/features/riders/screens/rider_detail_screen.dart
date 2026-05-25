@@ -1,7 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:intl/intl.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/rider_model.dart';
 import '../providers/rider_provider.dart';
@@ -17,12 +17,17 @@ class RiderDetailScreen extends ConsumerWidget {
 
     return riderAsync.when(
       loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       ),
       error: (err, _) => Scaffold(
         appBar: AppBar(),
         body: Center(
-          child: Text(err.toString(), style: Theme.of(context).textTheme.bodyMedium),
+          child: Text(
+            err.toString(),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
         ),
       ),
       data: (rider) => _RiderDetailBody(rider: rider),
@@ -38,6 +43,12 @@ class _RiderDetailBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final class20 = rider.is20
+        ? (rider.class20?.isNotEmpty == true ? rider.class20! : '-')
+        : context.l10n.doesNotRide;
+    final class24 = rider.is24
+        ? (rider.class24?.isNotEmpty == true ? rider.class24! : '-')
+        : context.l10n.doesNotRide;
 
     return Scaffold(
       body: CustomScrollView(
@@ -45,7 +56,11 @@ class _RiderDetailBody extends StatelessWidget {
           SliverAppBar(
             expandedHeight: 240,
             pinned: true,
-            title: Text(rider.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
+            title: Text(
+              rider.fullName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
@@ -54,7 +69,8 @@ class _RiderDetailBody extends StatelessWidget {
                     CachedNetworkImage(
                       imageUrl: rider.photoUrl!,
                       fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => _AvatarBackground(rider: rider),
+                      errorWidget: (_, __, ___) =>
+                          _AvatarBackground(rider: rider),
                     )
                   else
                     _AvatarBackground(rider: rider),
@@ -83,19 +99,6 @@ class _RiderDetailBody extends StatelessWidget {
                               rider.fullName,
                               style: Theme.of(context).textTheme.displayMedium,
                             ),
-                            if (rider.city != null && rider.city!.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.location_on_outlined,
-                                        size: 14, color: colors.textMuted),
-                                    const SizedBox(width: 4),
-                                    Text(rider.city!,
-                                        style: Theme.of(context).textTheme.bodySmall),
-                                  ],
-                                ),
-                              ),
                           ],
                         ),
                       ),
@@ -110,7 +113,7 @@ class _RiderDetailBody extends StatelessWidget {
                     runSpacing: 8,
                     children: [
                       if (rider.isElite)
-                        _Badge(
+                        const _Badge(
                           label: 'Elite',
                           color: AppColors.primary,
                           icon: Icons.star,
@@ -121,43 +124,60 @@ class _RiderDetailBody extends StatelessWidget {
                         _Badge(label: '24"', color: Colors.teal.shade600),
                       if (!rider.isActive)
                         _Badge(
-                          label: 'Neaktivní',
-                          color: colors.textMuted,
-                        ),
+                            label: context.l10n.inactive,
+                            color: colors.textMuted),
                     ],
                   ),
                   const SizedBox(height: 24),
 
                   // Info tiles
-                  if (rider.categoryLabel.isNotEmpty)
+                  if (rider.plateNumber != null &&
+                      rider.plateNumber!.isNotEmpty)
                     _InfoTile(
-                      icon: Icons.category_outlined,
-                      label: 'Kategorie',
-                      value: rider.categoryLabel,
-                    ),
-                  if (rider.dateOfBirth != null)
-                    _InfoTile(
-                      icon: Icons.cake_outlined,
-                      label: 'Datum narození',
-                      value: _formatDob(rider.dateOfBirth!, rider.age),
+                      icon: Icons.confirmation_number_outlined,
+                      label: context.l10n.plateNumber,
+                      value: rider.plateNumber!,
                     ),
                   _InfoTile(
-                    icon: rider.gender == 'Žena'
-                        ? Icons.female
-                        : Icons.male,
-                    label: 'Pohlaví',
-                    value: rider.gender,
+                    icon: Icons.looks_one_outlined,
+                    label: context.l10n.category20,
+                    value: class20,
+                  ),
+                  _InfoTile(
+                    icon: Icons.looks_two_outlined,
+                    label: context.l10n.category24,
+                    value: class24,
                   ),
                   _InfoTile(
                     icon: Icons.badge_outlined,
                     label: 'UCI ID',
                     value: rider.uciId.toString(),
                   ),
-                  if (rider.plateNumber != null && rider.plateNumber!.isNotEmpty)
+                  if (rider.ranking20 != null && rider.ranking20!.isNotEmpty)
                     _InfoTile(
-                      icon: Icons.confirmation_number_outlined,
-                      label: 'Startovní číslo',
-                      value: rider.plateNumber!,
+                      icon: Icons.emoji_events_outlined,
+                      label: context.l10n.ranking20,
+                      value: rider.ranking20!,
+                    ),
+                  if (rider.ranking24 != null && rider.ranking24!.isNotEmpty)
+                    _InfoTile(
+                      icon: Icons.emoji_events_outlined,
+                      label: context.l10n.ranking24,
+                      value: rider.ranking24!,
+                    ),
+                  if (rider.transponder20 != null &&
+                      rider.transponder20!.isNotEmpty)
+                    _InfoTile(
+                      icon: Icons.sensors_outlined,
+                      label: context.l10n.transponder20,
+                      value: rider.transponder20!,
+                    ),
+                  if (rider.transponder24 != null &&
+                      rider.transponder24!.isNotEmpty)
+                    _InfoTile(
+                      icon: Icons.sensors_outlined,
+                      label: context.l10n.transponder24,
+                      value: rider.transponder24!,
                     ),
                 ],
               ),
@@ -166,16 +186,6 @@ class _RiderDetailBody extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatDob(String dob, int? age) {
-    try {
-      final dt = DateTime.parse(dob);
-      final formatted = DateFormat('d. MMMM yyyy', 'cs').format(dt);
-      return age != null ? '$formatted ($age let)' : formatted;
-    } catch (_) {
-      return dob;
-    }
   }
 }
 
@@ -272,7 +282,11 @@ class _InfoTile extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoTile({required this.icon, required this.label, required this.value});
+  const _InfoTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -289,12 +303,19 @@ class _InfoTile extends StatelessWidget {
           children: [
             Icon(icon, color: colors.textMuted, size: 20),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: Theme.of(context).textTheme.bodySmall),
-                Text(value, style: Theme.of(context).textTheme.titleMedium),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: Theme.of(context).textTheme.bodySmall),
+                  Text(
+                    value,
+                    style: Theme.of(context).textTheme.titleMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ],
         ),

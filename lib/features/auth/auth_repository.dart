@@ -34,7 +34,8 @@ class UserModel {
   });
 
   String get fullName => '$firstName $lastName'.trim();
-  String get displayName => fullName.isNotEmpty ? fullName : email.split('@').first;
+  String get displayName =>
+      fullName.isNotEmpty ? fullName : email.split('@').first;
   bool get isAdmin => isStaff;
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
@@ -55,7 +56,7 @@ class UserModel {
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 final authRepositoryProvider = Provider<AuthRepository>(
-  (ref) => AuthRepository(DioClient.create(withAuth: false)),
+  (ref) => AuthRepository(ref.read(publicDioProvider)),
 );
 
 // ── Repository ────────────────────────────────────────────────────────────────
@@ -95,6 +96,35 @@ class AuthRepository {
       // Logout locally even if server call fails
     } finally {
       await TokenStorage.clear();
+    }
+  }
+
+  Future<void> register({
+    required String email,
+    required String firstName,
+    required String lastName,
+    required String password,
+  }) async {
+    try {
+      await _dio.post(
+        ApiConstants.authRegister,
+        data: {
+          'email': email,
+          'first_name': firstName,
+          'last_name': lastName,
+          'password': password,
+        },
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<void> requestPasswordReset(String email) async {
+    try {
+      await _dio.post(ApiConstants.authPasswordReset, data: {'email': email});
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
     }
   }
 

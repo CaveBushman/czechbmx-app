@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../../../core/l10n/app_localizations.dart';
+import '../../../core/network/dio_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/rider_model.dart';
 import '../providers/rider_provider.dart';
@@ -18,21 +22,33 @@ class RidersListScreen extends HookConsumerWidget {
     final bikeFilter = useState<String?>(null); // '20' | '24' | null
     final eliteOnly = useState(false);
     final showFilters = useState(false);
+    final searchDebounce = useRef<Timer?>(null);
+
+    void applyFilter() {
+      ref.read(ridersFilterProvider.notifier).state = RidersFilter(
+        search: searchCtrl.text.trim().isEmpty ? null : searchCtrl.text.trim(),
+        gender: genderFilter.value,
+        is20: bikeFilter.value == '20' ? true : null,
+        is24: bikeFilter.value == '24' ? true : null,
+        isElite: eliteOnly.value ? true : null,
+      );
+    }
 
     // Debounced search
     useEffect(() {
       void listener() {
-        ref.read(ridersFilterProvider.notifier).state = RidersFilter(
-          search: searchCtrl.text.trim().isEmpty ? null : searchCtrl.text.trim(),
-          gender: genderFilter.value,
-          is20: bikeFilter.value == '20' ? true : null,
-          is24: bikeFilter.value == '24' ? true : null,
-          isElite: eliteOnly.value ? true : null,
+        searchDebounce.value?.cancel();
+        searchDebounce.value = Timer(
+          const Duration(milliseconds: 350),
+          applyFilter,
         );
       }
 
       searchCtrl.addListener(listener);
-      return () => searchCtrl.removeListener(listener);
+      return () {
+        searchCtrl.removeListener(listener);
+        searchDebounce.value?.cancel();
+      };
     }, [searchCtrl]);
 
     final ridersAsync = ref.watch(ridersProvider);
@@ -44,93 +60,88 @@ class RidersListScreen extends HookConsumerWidget {
         onRefresh: () => ref.read(ridersProvider.notifier).refresh(),
         child: CustomScrollView(
           slivers: [
-          SliverAppBar(
-            floating: true,
-            snap: true,
-            title: const Text('Jezdci'),
-            actions: [
-              IconButton(
-                icon: Icon(
-                  showFilters.value ? Icons.filter_alt : Icons.filter_alt_outlined,
-                  color: showFilters.value ? AppColors.primary : null,
+            SliverAppBar(
+              floating: true,
+              snap: true,
+              title: Text(context.l10n.riders),
+              actions: [
+                IconButton(
+                  icon: Icon(
+                    showFilters.value
+                        ? Icons.filter_alt
+                        : Icons.filter_alt_outlined,
+                    color: showFilters.value ? AppColors.primary : null,
+                  ),
+                  onPressed: () => showFilters.value = !showFilters.value,
                 ),
-                onPressed: () => showFilters.value = !showFilters.value,
-              ),
-            ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(56),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                child: TextField(
-                  controller: searchCtrl,
-                  decoration: InputDecoration(
-                    hintText: 'Hledat jezdce...',
-                    hintStyle: TextStyle(color: colors.textMuted),
-                    prefixIcon: Icon(Icons.search, color: colors.textMuted),
-                    suffixIcon: searchCtrl.text.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(Icons.clear, color: colors.textMuted),
-                            onPressed: () {
-                              searchCtrl.clear();
-                              ref.read(ridersFilterProvider.notifier).state =
-                                  const RidersFilter();
-                            },
-                          )
-                        : null,
-                    filled: true,
-                    fillColor: colors.surfaceVariant,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
+              ],
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(56),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  child: TextField(
+                    controller: searchCtrl,
+                    decoration: InputDecoration(
+                      hintText: context.l10n.searchRiders,
+                      hintStyle: TextStyle(color: colors.textMuted),
+                      prefixIcon: Icon(Icons.search, color: colors.textMuted),
+                      suffixIcon: searchCtrl.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.clear, color: colors.textMuted),
+                              onPressed: () {
+                                searchCtrl.clear();
+                                applyFilter();
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: colors.surfaceVariant,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: EdgeInsets.zero,
                     ),
-                    contentPadding: EdgeInsets.zero,
                   ),
                 ),
               ),
             ),
-          ),
 
-          // Filter chips
-          if (showFilters.value)
-            SliverToBoxAdapter(
-              child: _FilterBar(
-                genderFilter: genderFilter,
-                bikeFilter: bikeFilter,
-                eliteOnly: eliteOnly,
-                onChanged: () {
-                  ref.read(ridersFilterProvider.notifier).state = RidersFilter(
-                    search: searchCtrl.text.trim().isEmpty ? null : searchCtrl.text.trim(),
-                    gender: genderFilter.value,
-                    is20: bikeFilter.value == '20' ? true : null,
-                    is24: bikeFilter.value == '24' ? true : null,
-                    isElite: eliteOnly.value ? true : null,
-                  );
-                },
-              ),
-            ),
-
-          ridersAsync.when(
-            loading: () => const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-            ),
-            error: (err, _) => SliverFillRemaining(
-              child: _ErrorView(message: err.toString(), ref: ref),
-            ),
-            data: (riders) {
-              if (riders.isEmpty) {
-                return const SliverFillRemaining(child: _EmptyView());
-              }
-              return SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                sliver: SliverList.separated(
-                  itemCount: riders.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) => _RiderTile(rider: riders[i]),
+            // Filter chips
+            if (showFilters.value)
+              SliverToBoxAdapter(
+                child: _FilterBar(
+                  genderFilter: genderFilter,
+                  bikeFilter: bikeFilter,
+                  eliteOnly: eliteOnly,
+                  onChanged: applyFilter,
                 ),
-              );
-            },
-          ),
-        ],
+              ),
+
+            ridersAsync.when(
+              loading: () => const SliverFillRemaining(
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              ),
+              error: (err, _) => SliverFillRemaining(
+                child: _ErrorView(error: err, ref: ref),
+              ),
+              data: (riders) {
+                if (riders.isEmpty) {
+                  return const SliverFillRemaining(child: _EmptyView());
+                }
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                  sliver: SliverList.separated(
+                    itemCount: riders.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (_, i) => _RiderTile(rider: riders[i]),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -161,7 +172,7 @@ class _FilterBar extends StatelessWidget {
         spacing: 8,
         children: [
           _Chip(
-            label: 'Muži',
+            label: context.l10n.men,
             selected: genderFilter.value == 'Muž',
             onTap: () {
               genderFilter.value = genderFilter.value == 'Muž' ? null : 'Muž';
@@ -169,7 +180,7 @@ class _FilterBar extends StatelessWidget {
             },
           ),
           _Chip(
-            label: 'Ženy',
+            label: context.l10n.women,
             selected: genderFilter.value == 'Žena',
             onTap: () {
               genderFilter.value = genderFilter.value == 'Žena' ? null : 'Žena';
@@ -211,7 +222,11 @@ class _Chip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _Chip({required this.label, required this.selected, required this.onTap});
+  const _Chip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -243,7 +258,7 @@ class _Chip extends StatelessWidget {
 
 // ── Rider tile ────────────────────────────────────────────────────────────────
 
-class _RiderTile extends StatelessWidget {
+class _RiderTile extends HookWidget {
   final RiderModel rider;
 
   const _RiderTile({required this.rider});
@@ -251,9 +266,17 @@ class _RiderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final pressed = useState(false);
     return GestureDetector(
       onTap: () => context.go('/riders/${rider.uciId}'),
-      child: Container(
+      onTapDown: (_) => pressed.value = true,
+      onTapUp: (_) => pressed.value = false,
+      onTapCancel: () => pressed.value = false,
+      child: AnimatedScale(
+        scale: pressed.value ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: Container(
         decoration: BoxDecoration(
           color: colors.card,
           borderRadius: BorderRadius.circular(10),
@@ -262,14 +285,17 @@ class _RiderTile extends StatelessWidget {
           children: [
             // Avatar
             ClipRRect(
-              borderRadius: const BorderRadius.horizontal(left: Radius.circular(10)),
+              borderRadius: const BorderRadius.horizontal(
+                left: Radius.circular(10),
+              ),
               child: rider.photoUrl != null
                   ? CachedNetworkImage(
                       imageUrl: rider.photoUrl!,
                       width: 64,
                       height: 64,
                       fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => _avatarPlaceholder(rider, colors),
+                      errorWidget: (_, __, ___) =>
+                          _avatarPlaceholder(rider, colors),
                     )
                   : _avatarPlaceholder(rider, colors),
             ),
@@ -279,12 +305,16 @@ class _RiderTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(rider.fullName, style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    rider.fullName,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     [
                       if (rider.categoryLabel.isNotEmpty) rider.categoryLabel,
-                      if (rider.city != null && rider.city!.isNotEmpty) rider.city,
+                      if (rider.city != null && rider.city!.isNotEmpty)
+                        rider.city,
                     ].join(' · '),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
@@ -314,6 +344,7 @@ class _RiderTile extends StatelessWidget {
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -339,14 +370,18 @@ class _RiderTile extends StatelessWidget {
 // ── States ────────────────────────────────────────────────────────────────────
 
 class _ErrorView extends StatelessWidget {
-  final String message;
+  final Object error;
   final WidgetRef ref;
 
-  const _ErrorView({required this.message, required this.ref});
+  const _ErrorView({required this.error, required this.ref});
 
   @override
   Widget build(BuildContext context) {
-    final isAuth = message.contains('401') || message.contains('Neplatné');
+    final isAuth = error is ApiException &&
+        ((error as ApiException).statusCode == 401 ||
+            (error as ApiException).message.contains('přihlásit'));
+    final message = error.toString();
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -360,12 +395,12 @@ class _ErrorView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              isAuth ? 'Přihlášení vyžadováno' : 'Chyba načítání',
+              isAuth ? context.l10n.loginRequired : context.l10n.loadingFailed,
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 8),
             Text(
-              isAuth ? 'Pro zobrazení jezdců se musíte přihlásit.' : message,
+              isAuth ? context.l10n.ridersLoginRequired : message,
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
@@ -375,7 +410,7 @@ class _ErrorView extends StatelessWidget {
                   ? context.go('/login')
                   : ref.read(ridersProvider.notifier).refresh(),
               icon: Icon(isAuth ? Icons.login : Icons.refresh),
-              label: Text(isAuth ? 'Přihlásit se' : 'Zkusit znovu'),
+              label: Text(isAuth ? context.l10n.login : context.l10n.retry),
             ),
           ],
         ),
@@ -393,9 +428,16 @@ class _EmptyView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.person_search_outlined, size: 64, color: context.colors.textMuted),
+          Icon(
+            Icons.person_search_outlined,
+            size: 64,
+            color: context.colors.textMuted,
+          ),
           const SizedBox(height: 16),
-          Text('Žádní jezdci nenalezeni', style: Theme.of(context).textTheme.headlineMedium),
+          Text(
+            context.l10n.noRiders,
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
         ],
       ),
     );

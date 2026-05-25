@@ -1,20 +1,37 @@
 import 'package:dio/dio.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../constants/api_constants.dart';
+import '../l10n/locale_provider.dart';
 import 'auth_interceptor.dart';
+
+final dioProvider = Provider<Dio>((ref) {
+  final localeCode = ref.watch(currentLocaleCodeProvider);
+  return DioClient.create(localeCode: localeCode);
+});
+
+final publicDioProvider = Provider<Dio>(
+  (ref) {
+    final localeCode = ref.watch(currentLocaleCodeProvider);
+    return DioClient.create(withAuth: false, localeCode: localeCode);
+  },
+);
 
 class DioClient {
   DioClient._();
 
-  static Dio create({bool withAuth = true}) {
-    final dio = Dio(BaseOptions(
-      baseUrl: ApiConstants.baseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 30),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    ));
+  static Dio create({bool withAuth = true, String localeCode = 'cs'}) {
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: ApiConstants.baseUrl,
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Accept-Language': localeCode,
+        },
+      ),
+    );
 
     if (withAuth) dio.interceptors.add(AuthInterceptor());
     dio.interceptors.add(_LogInterceptor());
@@ -27,7 +44,7 @@ class _LogInterceptor extends Interceptor {
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     assert(() {
       // ignore: avoid_print
-      print('[HTTP] ${options.method} ${options.path}');
+      print('[HTTP] ${options.method} ${options.uri}');
       return true;
     }());
     handler.next(options);
@@ -37,7 +54,9 @@ class _LogInterceptor extends Interceptor {
   void onResponse(Response response, ResponseInterceptorHandler handler) {
     assert(() {
       // ignore: avoid_print
-      print('[HTTP ${response.statusCode}] ${response.requestOptions.path} → ${response.data}');
+      print(
+        '[HTTP ${response.statusCode}] ${response.requestOptions.uri} → ${response.data}',
+      );
       return true;
     }());
     handler.next(response);
@@ -47,7 +66,9 @@ class _LogInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) {
     assert(() {
       // ignore: avoid_print
-      print('[HTTP ERR] ${err.response?.statusCode} ${err.response?.data} ${err.message}');
+      print(
+        '[HTTP ERR] ${err.response?.statusCode} ${err.requestOptions.uri} ${err.response?.data} ${err.message}',
+      );
       return true;
     }());
     handler.next(err);

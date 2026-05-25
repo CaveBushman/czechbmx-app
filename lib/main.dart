@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'core/l10n/app_localizations.dart';
+import 'core/l10n/locale_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('cs', null);
+  await initializeDateFormatting();
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -22,6 +24,8 @@ class CzechBmxApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(resolvedThemeModeProvider);
+    final locale = ref.watch(appLocaleProvider).valueOrNull;
+    final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
       title: 'Czech BMX',
@@ -29,7 +33,10 @@ class CzechBmxApp extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
-      routerConfig: appRouter,
+      locale: locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      routerConfig: router,
       builder: (context, child) {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(

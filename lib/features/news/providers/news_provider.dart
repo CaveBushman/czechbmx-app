@@ -29,8 +29,9 @@ class NewsPageState {
       );
 }
 
-final newsListProvider =
-    AsyncNotifierProvider<NewsListNotifier, NewsPageState>(NewsListNotifier.new);
+final newsListProvider = AsyncNotifierProvider<NewsListNotifier, NewsPageState>(
+  NewsListNotifier.new,
+);
 
 class NewsListNotifier extends AsyncNotifier<NewsPageState> {
   @override
@@ -45,16 +46,20 @@ class NewsListNotifier extends AsyncNotifier<NewsPageState> {
 
     state = AsyncData(current.copyWith(isLoadingMore: true));
     try {
-      final page =
-          await ref.read(newsRepositoryProvider).fetchNews(page: current.nextPage);
+      final page = await ref
+          .read(newsRepositoryProvider)
+          .fetchNews(page: current.nextPage);
       final existingIds = current.articles.map((e) => e.id).toSet();
-      final fresh = page.items.where((e) => !existingIds.contains(e.id)).toList();
-      state = AsyncData(current.copyWith(
-        articles: [...current.articles, ...fresh],
-        hasMore: page.hasMore,
-        isLoadingMore: false,
-        nextPage: current.nextPage + 1,
-      ));
+      final fresh =
+          page.items.where((e) => !existingIds.contains(e.id)).toList();
+      state = AsyncData(
+        current.copyWith(
+          articles: [...current.articles, ...fresh],
+          hasMore: page.hasMore,
+          isLoadingMore: false,
+          nextPage: current.nextPage + 1,
+        ),
+      );
     } catch (_) {
       state = AsyncData(current.copyWith(isLoadingMore: false));
     }

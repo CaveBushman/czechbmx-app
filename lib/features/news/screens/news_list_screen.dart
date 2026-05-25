@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/news_model.dart';
 import '../providers/news_provider.dart';
@@ -23,6 +24,7 @@ class NewsListScreen extends HookConsumerWidget {
           ref.read(newsListProvider.notifier).loadMore();
         }
       }
+
       scrollController.addListener(onScroll);
       return () => scrollController.removeListener(onScroll);
     }, [scrollController]);
@@ -59,27 +61,25 @@ class NewsListScreen extends HookConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Text('Czech BMX'),
+                  Text(context.l10n.appTitle),
                 ],
               ),
               actions: [
-                IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: () {},
-                ),
+                IconButton(icon: const Icon(Icons.search), onPressed: () {}),
               ],
             ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Text(
-                  'Aktuality',
+                  context.l10n.news,
                   style: Theme.of(context).textTheme.displayMedium,
                 ),
               ),
             ),
             newsAsync.when(
-              loading: () => const SliverFillRemaining(child: NewsListShimmer()),
+              loading: () =>
+                  const SliverFillRemaining(child: NewsListShimmer()),
               error: (err, _) => SliverFillRemaining(
                 child: _ErrorView(
                   message: err.toString(),
@@ -122,25 +122,22 @@ class _NewsList extends StatelessWidget {
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
       sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            // Footer slot
-            if (index == articles.length) {
-              return _ListFooter(isLoadingMore: isLoadingMore, hasMore: hasMore);
-            }
+        delegate: SliverChildBuilderDelegate((context, index) {
+          // Footer slot
+          if (index == articles.length) {
+            return _ListFooter(isLoadingMore: isLoadingMore, hasMore: hasMore);
+          }
 
-            final news = articles[index];
-            final isFeatured = index == 0;
-            return _AnimatedNewsItem(
-              index: index,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: NewsCard(news: news, featured: isFeatured),
-              ),
-            );
-          },
-          childCount: articles.length + 1,
-        ),
+          final news = articles[index];
+          final isFeatured = index == 0;
+          return _AnimatedNewsItem(
+            index: index,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: NewsCard(news: news, featured: isFeatured),
+            ),
+          );
+        }, childCount: articles.length + 1),
       ),
     );
   }
@@ -157,7 +154,9 @@ class _ListFooter extends StatelessWidget {
     if (isLoadingMore) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       );
     }
     if (!hasMore) {
@@ -165,11 +164,10 @@ class _ListFooter extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 20),
         child: Center(
           child: Text(
-            '— Konec aktualit —',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall!
-                .copyWith(color: context.colors.textMuted),
+            '— ${context.l10n.news} —',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall!.copyWith(color: context.colors.textMuted),
           ),
         ),
       );
@@ -230,21 +228,28 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.wifi_off_rounded, size: 64, color: context.colors.textMuted),
+            Icon(
+              Icons.wifi_off_rounded,
+              size: 64,
+              color: context.colors.textMuted,
+            ),
             const SizedBox(height: 16),
             Text(
-              'Nepodařilo se načíst aktuality',
+              context.l10n.newsLoadFailed,
               style: Theme.of(context).textTheme.headlineMedium,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            Text(message, style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center),
+            Text(
+              message,
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('Zkusit znovu'),
+              label: Text(context.l10n.retry),
             ),
           ],
         ),
@@ -262,9 +267,16 @@ class _EmptyView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.newspaper_outlined, size: 64, color: context.colors.textMuted),
+          Icon(
+            Icons.newspaper_outlined,
+            size: 64,
+            color: context.colors.textMuted,
+          ),
           const SizedBox(height: 16),
-          Text('Žádné aktuality', style: Theme.of(context).textTheme.headlineMedium),
+          Text(
+            context.l10n.noNews,
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
         ],
       ),
     );

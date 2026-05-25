@@ -48,10 +48,9 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   Future<void> login({required String email, required String password}) async {
     state = const AsyncData(AuthLoading());
     try {
-      final user = await ref.read(authRepositoryProvider).login(
-            email: email,
-            password: password,
-          );
+      final user = await ref
+          .read(authRepositoryProvider)
+          .login(email: email, password: password);
       state = AsyncData(AuthAuthenticated(user));
     } catch (e) {
       state = const AsyncData(AuthUnauthenticated());
@@ -62,5 +61,19 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   Future<void> logout() async {
     await ref.read(authRepositoryProvider).logout();
     state = const AsyncData(AuthUnauthenticated());
+  }
+
+  Future<void> register({
+    required String email,
+    required String firstName,
+    required String lastName,
+    required String password,
+  }) async {
+    await ref.read(authRepositoryProvider).register(
+          email: email,
+          firstName: firstName,
+          lastName: lastName,
+          password: password,
+        );
   }
 }

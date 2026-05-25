@@ -16,6 +16,7 @@ class NewsModel {
   final bool publishedAudio;
   final bool onHomepage;
   final bool published;
+  final bool publishInApp;
   final DateTime? createdDate;
   final String? publishDate;
 
@@ -35,14 +36,19 @@ class NewsModel {
     required this.publishedAudio,
     required this.onHomepage,
     required this.published,
+    required this.publishInApp,
     this.createdDate,
     this.publishDate,
   });
 
-  String? get photo01Url => photo01 != null ? ApiConstants.mediaPath(photo01!) : null;
-  String? get photo02Url => photo02 != null ? ApiConstants.mediaPath(photo02!) : null;
-  String? get photo03Url => photo03 != null ? ApiConstants.mediaPath(photo03!) : null;
-  String? get audioUrl => audioFile != null ? ApiConstants.mediaPath(audioFile!) : null;
+  String? get photo01Url =>
+      photo01 != null ? ApiConstants.mediaPath(photo01!) : null;
+  String? get photo02Url =>
+      photo02 != null ? ApiConstants.mediaPath(photo02!) : null;
+  String? get photo03Url =>
+      photo03 != null ? ApiConstants.mediaPath(photo03!) : null;
+  String? get audioUrl =>
+      audioFile != null ? ApiConstants.mediaPath(audioFile!) : null;
 
   String get identifier => slug ?? id.toString();
 
@@ -53,10 +59,8 @@ class NewsModel {
       slug: json['slug'] as String?,
       prefix: json['prefix'] as String?,
       content: json['content'] as String?,
-      tags: (json['tags'] as List<dynamic>?)
-              ?.map((e) => e as int)
-              .toList() ??
-          [],
+      tags:
+          (json['tags'] as List<dynamic>?)?.map((e) => e as int).toList() ?? [],
       photo01: json['photo_01'] as String?,
       photo02: json['photo_02'] as String?,
       photo03: json['photo_03'] as String?,
@@ -66,6 +70,7 @@ class NewsModel {
       publishedAudio: json['published_audio'] as bool? ?? false,
       onHomepage: json['on_homepage'] as bool? ?? false,
       published: json['published'] as bool? ?? false,
+      publishInApp: json['publish_in_app'] as bool? ?? false,
       createdDate: json['created_date'] != null
           ? DateTime.tryParse(json['created_date'] as String)
           : null,
@@ -90,7 +95,9 @@ class PaginatedNews {
   factory PaginatedNews.fromJson(dynamic json) {
     // Handles both paginated {"count":…,"results":[…]} and flat list […]
     if (json is List) {
-      final items = json.map((e) => NewsModel.fromJson(e as Map<String, dynamic>)).toList();
+      final items = json
+          .map((e) => NewsModel.fromJson(e as Map<String, dynamic>))
+          .toList();
       return PaginatedNews(count: items.length, results: items);
     }
     final map = json as Map<String, dynamic>;

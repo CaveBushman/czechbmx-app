@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:just_audio/just_audio.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 
 class NewsAudioPlayer extends HookWidget {
@@ -35,7 +36,9 @@ class NewsAudioPlayer extends HookWidget {
       init();
 
       final posSub = player.positionStream.listen((p) => position.value = p);
-      final durSub = player.durationStream.listen((d) => duration.value = d ?? Duration.zero);
+      final durSub = player.durationStream.listen(
+        (d) => duration.value = d ?? Duration.zero,
+      );
       final stateSub = player.playerStateStream.listen((s) {
         isPlaying.value = s.playing;
         // Auto-reset to start when finished
@@ -72,10 +75,10 @@ class NewsAudioPlayer extends HookWidget {
               const Icon(Icons.headphones, size: 16, color: AppColors.primary),
               const SizedBox(width: 8),
               Text(
-                'Audio verze článku',
-                style: Theme.of(context).textTheme.labelLarge!.copyWith(
-                      color: AppColors.primary,
-                    ),
+                context.l10n.audioArticle,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge!.copyWith(color: AppColors.primary),
               ),
               const Spacer(),
               Text(
@@ -98,9 +101,10 @@ class NewsAudioPlayer extends HookWidget {
             ),
             child: Slider(
               value: duration.value.inMilliseconds > 0
-                  ? position.value.inMilliseconds
-                      .toDouble()
-                      .clamp(0, duration.value.inMilliseconds.toDouble())
+                  ? position.value.inMilliseconds.toDouble().clamp(
+                        0,
+                        duration.value.inMilliseconds.toDouble(),
+                      )
                   : 0,
               max: duration.value.inMilliseconds > 0
                   ? duration.value.inMilliseconds.toDouble()
@@ -113,7 +117,10 @@ class NewsAudioPlayer extends HookWidget {
           // Time row + play button
           Row(
             children: [
-              Text(_fmt(position.value), style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                _fmt(position.value),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
               const Spacer(),
               // Rewind 10s
               IconButton(
@@ -123,14 +130,17 @@ class NewsAudioPlayer extends HookWidget {
                     ? () => player.seek(
                           Duration(
                             milliseconds:
-                                (position.value.inMilliseconds - 10000).clamp(0, double.infinity).toInt(),
+                                (position.value.inMilliseconds - 10000)
+                                    .clamp(0, double.infinity)
+                                    .toInt(),
                           ),
                         )
                     : null,
               ),
               // Play / pause
               _PlayButton(
-                isLoading: isLoading.value || (!isReady.value && !hasError.value),
+                isLoading:
+                    isLoading.value || (!isReady.value && !hasError.value),
                 isPlaying: isPlaying.value,
                 onTap: () {
                   if (!isReady.value) return;
@@ -144,14 +154,18 @@ class NewsAudioPlayer extends HookWidget {
                 onPressed: isReady.value
                     ? () => player.seek(
                           Duration(
-                            milliseconds: (position.value.inMilliseconds + 10000)
-                                .clamp(0, duration.value.inMilliseconds),
+                            milliseconds:
+                                (position.value.inMilliseconds + 10000)
+                                    .clamp(0, duration.value.inMilliseconds),
                           ),
                         )
                     : null,
               ),
               const Spacer(),
-              Text(_fmt(duration.value), style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                _fmt(duration.value),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ],
           ),
         ],
