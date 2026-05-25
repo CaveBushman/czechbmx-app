@@ -194,6 +194,18 @@ class AppLocalizations {
   String get categoryNotAvailable => t('categoryNotAvailable');
   String get entrySuccess => t('entrySuccess');
 
+  // Plate request
+  String get requestPlateNumber => t('requestPlateNumber');
+  String get plateRequestIntro => t('plateRequestIntro');
+  String get selectPlate => t('selectPlate');
+  String get selectClub => t('selectClub');
+  String get emergencyContact => t('emergencyContact');
+  String get emergencyPhone => t('emergencyPhone');
+  String get bikeCategories => t('bikeCategories');
+  String get plateRequestSuccess => t('plateRequestSuccess');
+  String get plateRequestPendingApproval => t('plateRequestPendingApproval');
+  String get lookupFromFederation => t('lookupFromFederation');
+
   // Share
   String get share => t('share');
 
@@ -417,6 +429,16 @@ const _localizedValues = {
     'calculateCategories': 'Načíst kategorie',
     'categoryNotAvailable': 'Kategorie není dostupná',
     'entrySuccess': 'Přihlášení proběhlo úspěšně',
+    'requestPlateNumber': 'Žádat o startovní číslo',
+    'plateRequestIntro': 'Vyplň formulář a požádej o přidělení startovního čísla. Po schválení administrátorem bude číslo přiděleno.',
+    'selectPlate': 'Vyber startovní číslo',
+    'selectClub': 'Vyber klub',
+    'emergencyContact': 'Nouzový kontakt (jméno)',
+    'emergencyPhone': 'Nouzový kontakt (telefon)',
+    'bikeCategories': 'Kategorie kola',
+    'plateRequestSuccess': 'Žádost odeslána',
+    'plateRequestPendingApproval': 'Žádost čeká na schválení administrátorem.',
+    'lookupFromFederation': 'Ověřit UCI ID v databázi ČSC',
   },
   'sk': {
     'appTitle': 'Czech BMX',
@@ -1414,5 +1436,15 @@ const _localizedValues = {
     'calculateCategories': 'Load categories',
     'categoryNotAvailable': 'Category not available',
     'entrySuccess': 'Registration successful',
+    'requestPlateNumber': 'Request plate number',
+    'plateRequestIntro': 'Fill in the form to request a plate number assignment. It will be assigned after admin approval.',
+    'selectPlate': 'Select plate number',
+    'selectClub': 'Select club',
+    'emergencyContact': 'Emergency contact (name)',
+    'emergencyPhone': 'Emergency contact (phone)',
+    'bikeCategories': 'Bike categories',
+    'plateRequestSuccess': 'Request submitted',
+    'plateRequestPendingApproval': 'Your request is pending admin approval.',
+    'lookupFromFederation': 'Verify UCI ID in federation database',
   },
 };

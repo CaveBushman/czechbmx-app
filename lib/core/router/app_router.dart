@@ -22,6 +22,7 @@ import '../../features/shop/screens/shop_list_screen.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
 import '../../features/profile/screens/profile_screen.dart';
+import '../../features/riders/screens/plate_request_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authNotifier = ValueNotifier<AuthState?>(null);
@@ -194,6 +195,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 pageBuilder: (context, state) => _slideTransition(
                   key: state.pageKey,
                   child: const CreditTopUpScreen(),
+                ),
+              ),
+              GoRoute(
+                path: 'plate-request',
+                pageBuilder: (context, state) => _slideTransition(
+                  key: state.pageKey,
+                  child: const PlateRequestScreen(),
                 ),
               ),
             ],

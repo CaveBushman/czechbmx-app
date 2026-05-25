@@ -1331,35 +1331,57 @@ class _TrackPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 18
+      ..strokeWidth = 24
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
+
+    // Stylizovaný "BMX Rhythm Section" a startovní pahorek
     final path = Path()
-      ..moveTo(-20, size.height * 0.34)
+      // Startovní pahorek (Starting Hill)
+      ..moveTo(-50, size.height * 0.1)
+      ..lineTo(size.width * 0.2, size.height * 0.45)
+      // První skok (Double)
       ..quadraticBezierTo(
-        size.width * 0.25,
-        size.height * 0.12,
-        size.width * 0.52,
-        size.height * 0.36,
+        size.width * 0.3,
+        size.height * 0.2,
+        size.width * 0.45,
+        size.height * 0.45,
       )
+      // Druhý skok a nájezd do zatáčky
       ..quadraticBezierTo(
-        size.width * 0.75,
-        size.height * 0.56,
-        size.width + 28,
-        size.height * 0.32,
+        size.width * 0.6,
+        size.height * 0.65,
+        size.width + 50,
+        size.height * 0.4,
       );
+    
     canvas.drawPath(path, paint);
 
+    // Startovní brána (Start Gate) - symbol 8 pozic
     final gatePaint = Paint()
-      ..color = color.withValues(alpha: 0.75)
-      ..strokeWidth = 4
+      ..color = color.withValues(alpha: 0.8)
+      ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
-    for (var i = 0; i < 5; i++) {
-      final x = size.width * 0.12 + i * 32;
+      
+    for (var i = 0; i < 8; i++) {
+      final startX = size.width * 0.05 + i * 14;
+      final startY = size.height * 0.25 + i * 8;
       canvas.drawLine(
-        Offset(x, size.height * 0.7),
-        Offset(x + 22, size.height * 0.62),
+        Offset(startX, startY),
+        Offset(startX + 10, startY - 15),
         gatePaint,
+      );
+    }
+
+    // Cílová čára (Finish Grid) v dálce
+    final finishPaint = Paint()
+      ..color = color.withValues(alpha: 0.3)
+      ..strokeWidth = 1;
+    for (var i = 0; i < 10; i++) {
+      canvas.drawLine(
+        Offset(size.width * 0.85 + i * 5, 0),
+        Offset(size.width * 0.85 + i * 5, size.height),
+        finishPaint,
       );
     }
   }

@@ -393,7 +393,6 @@ class _RiderTile extends HookConsumerWidget {
           },
           onHighlightChanged: (highlight) => pressed.value = highlight,
           child: Container(
-            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: colors.card,
               borderRadius: BorderRadius.circular(20),
@@ -441,7 +440,7 @@ class _RiderTile extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        displayCategory.isEmpty ? 'BMX RIDER' : displayCategory,
+                        displayCategory.isEmpty ? 'BMX RIDER' : displayCategory.toUpperCase(),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: accentColor,
                           fontWeight: FontWeight.w800,

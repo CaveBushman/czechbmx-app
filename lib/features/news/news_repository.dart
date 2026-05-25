@@ -5,7 +5,7 @@ import '../../core/network/dio_client.dart';
 import 'models/news_model.dart';
 
 final newsRepositoryProvider = Provider<NewsRepository>(
-  (ref) => NewsRepository(ref.read(publicDioProvider)),
+  (ref) => NewsRepository(ref.watch(publicDioProvider)),
 );
 
 class NewsPage {

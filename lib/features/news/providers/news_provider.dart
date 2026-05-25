@@ -41,7 +41,8 @@ final newsListProvider = AsyncNotifierProvider<NewsListNotifier, NewsPageState>(
 class NewsListNotifier extends AsyncNotifier<NewsPageState> {
   @override
   Future<NewsPageState> build() async {
-    final page = await ref.read(newsRepositoryProvider).fetchNews(page: 1);
+    final repo = ref.watch(newsRepositoryProvider);
+    final page = await repo.fetchNews(page: 1);
     return NewsPageState(articles: page.items, hasMore: page.hasMore);
   }
 
@@ -108,6 +109,9 @@ final newsDetailProvider =
 class NewsDetailNotifier extends FamilyAsyncNotifier<NewsModel, String> {
   @override
   Future<NewsModel> build(String slugOrId) async {
+    final repo = ref.watch(newsRepositoryProvider);
+    // Only use list cache when the list was already fetched in the current locale
+    // (newsListProvider rebuilds together with this notifier when locale changes).
     final cached = ref
         .read(newsListProvider)
         .valueOrNull
@@ -115,6 +119,6 @@ class NewsDetailNotifier extends FamilyAsyncNotifier<NewsModel, String> {
         .where((n) => n.slug == slugOrId || n.id.toString() == slugOrId)
         .firstOrNull;
     if (cached != null) return cached;
-    return ref.read(newsRepositoryProvider).fetchNewsDetail(slugOrId);
+    return repo.fetchNewsDetail(slugOrId);
   }
 }

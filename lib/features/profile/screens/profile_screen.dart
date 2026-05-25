@@ -307,6 +307,9 @@ class ProfileScreen extends HookConsumerWidget {
                 if (user.isRider && user.riderUciId != null) ...[
                   const SizedBox(height: 4),
                   _LinkedRiderTile(uciId: user.riderUciId!),
+                ] else ...[
+                  const SizedBox(height: 8),
+                  _PlateRequestTile(),
                 ],
                 const SizedBox(height: 24),
                 const _MyEntriesSection(),
@@ -691,6 +694,59 @@ class _LinkedRiderTile extends ConsumerWidget {
                 color: context.colors.textMuted,
                 size: 18,
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PlateRequestTile extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: GestureDetector(
+        onTap: () => context.go('/profile/plate-request'),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: context.colors.card,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.confirmation_number_outlined, color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.l10n.requestPlateNumber,
+                      style: Theme.of(context).textTheme.titleSmall!.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    Text(
+                      context.l10n.plateRequestIntro.split('.').first,
+                      style: Theme.of(context).textTheme.bodySmall!.copyWith(color: context.colors.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: context.colors.textMuted, size: 18),
             ],
           ),
         ),

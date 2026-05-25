@@ -25,6 +25,10 @@ class ApiConstants {
       '/api/auth/password/reset/confirm/';
   static const String authPasswordChange = '/api/auth/password/change/';
 
+  static const String plateRequest = '/api/riders/plate-request/';
+  static const String plateRequestLookup = '/api/riders/plate-request/lookup/';
+  static const String plateRequestFreePlates = '/api/riders/plate-request/free-plates/';
+
   static const String rankingCategories = '/api/ranking/categories/';
   static const String ranking = '/api/ranking/';
 
