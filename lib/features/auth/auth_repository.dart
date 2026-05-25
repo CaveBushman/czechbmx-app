@@ -8,45 +8,47 @@ import '../../core/network/token_storage.dart';
 
 class UserModel {
   final int id;
-  final String username;
+  final String email;
   final String firstName;
   final String lastName;
-  final String email;
-  final bool isAdmin;
+  final bool isStaff;
   final bool isRider;
   final bool isClubManager;
   final bool isCommissar;
   final bool isTrainer;
   final int credit;
+  final String? photoUrl;
 
   const UserModel({
     required this.id,
-    required this.username,
+    required this.email,
     required this.firstName,
     required this.lastName,
-    required this.email,
-    required this.isAdmin,
+    required this.isStaff,
     required this.isRider,
     required this.isClubManager,
     required this.isCommissar,
     required this.isTrainer,
     required this.credit,
+    this.photoUrl,
   });
 
   String get fullName => '$firstName $lastName'.trim();
+  String get displayName => fullName.isNotEmpty ? fullName : email.split('@').first;
+  bool get isAdmin => isStaff;
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
         id: json['id'] as int,
-        username: json['username'] as String,
+        email: json['email'] as String? ?? '',
         firstName: json['first_name'] as String? ?? '',
         lastName: json['last_name'] as String? ?? '',
-        email: json['email'] as String? ?? '',
-        isAdmin: json['is_admin'] as bool? ?? false,
+        isStaff: json['is_staff'] as bool? ?? false,
         isRider: json['is_rider'] as bool? ?? false,
         isClubManager: json['is_club_manager'] as bool? ?? false,
         isCommissar: json['is_commissar'] as bool? ?? false,
         isTrainer: json['is_trainer'] as bool? ?? false,
         credit: json['credit'] as int? ?? 0,
+        photoUrl: json['photo_url'] as String?,
       );
 }
 
@@ -64,13 +66,13 @@ class AuthRepository {
   const AuthRepository(this._dio);
 
   Future<UserModel> login({
-    required String username,
+    required String email,
     required String password,
   }) async {
     try {
       final response = await _dio.post(
         ApiConstants.authLogin,
-        data: {'username': username, 'password': password},
+        data: {'email': email, 'password': password},
       );
       final data = response.data as Map<String, dynamic>;
       await TokenStorage.save(

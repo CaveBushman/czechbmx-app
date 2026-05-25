@@ -247,7 +247,7 @@ class _ProfileScreen extends ConsumerWidget {
             child: Text(user.fullName, style: Theme.of(context).textTheme.displayMedium),
           ),
           Center(
-            child: Text('@${user.username}', style: Theme.of(context).textTheme.bodyMedium),
+            child: Text(user.email, style: Theme.of(context).textTheme.bodyMedium),
           ),
           const SizedBox(height: 32),
 

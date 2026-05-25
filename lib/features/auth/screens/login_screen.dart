@@ -10,24 +10,24 @@ class LoginScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final usernameCtrl = useTextEditingController();
+    final emailCtrl = useTextEditingController();
     final passwordCtrl = useTextEditingController();
     final obscure = useState(true);
     final isLoading = useState(false);
     final errorMsg = useState<String?>(null);
 
     Future<void> submit() async {
-      final username = usernameCtrl.text.trim();
+      final email = emailCtrl.text.trim();
       final password = passwordCtrl.text;
-      if (username.isEmpty || password.isEmpty) {
-        errorMsg.value = 'Vyplňte uživatelské jméno a heslo.';
+      if (email.isEmpty || password.isEmpty) {
+        errorMsg.value = 'Vyplňte e-mail a heslo.';
         return;
       }
       isLoading.value = true;
       errorMsg.value = null;
       try {
         await ref.read(authProvider.notifier).login(
-              username: username,
+              email: email,
               password: password,
             );
         final authState = ref.read(authProvider).valueOrNull;
@@ -112,11 +112,12 @@ class LoginScreen extends HookConsumerWidget {
                   const SizedBox(height: 16),
                 ],
 
-                // Username
+                // Email
                 _Field(
-                  controller: usernameCtrl,
-                  label: 'Uživatelské jméno',
-                  icon: Icons.person_outline,
+                  controller: emailCtrl,
+                  label: 'E-mail',
+                  icon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
                   colors: colors,
                   onSubmitted: (_) => submit(),
                 ),
@@ -212,6 +213,7 @@ class _Field extends StatelessWidget {
   final String label;
   final IconData icon;
   final AppColorPalette colors;
+  final TextInputType keyboardType;
   final ValueChanged<String>? onSubmitted;
 
   const _Field({
@@ -219,6 +221,7 @@ class _Field extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.colors,
+    this.keyboardType = TextInputType.text,
     this.onSubmitted,
   });
 
@@ -226,6 +229,7 @@ class _Field extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
+      keyboardType: keyboardType,
       textInputAction: TextInputAction.next,
       onSubmitted: onSubmitted,
       decoration: _fieldDecoration(label: label, icon: icon, colors: colors),
