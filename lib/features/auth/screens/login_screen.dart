@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../riders/providers/rider_provider.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends HookConsumerWidget {
@@ -30,6 +31,9 @@ class LoginScreen extends HookConsumerWidget {
         await ref
             .read(authProvider.notifier)
             .login(email: email, password: password);
+
+        ref.invalidate(ridersProvider);
+
         final authState = ref.read(authProvider).valueOrNull;
         if (authState is AuthAuthenticated && context.mounted) {
           context.go('/news');

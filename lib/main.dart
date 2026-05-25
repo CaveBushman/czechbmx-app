@@ -7,6 +7,8 @@ import 'core/l10n/locale_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
+import 'core/widgets/splash_screen.dart';
+import 'features/auth/providers/auth_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,13 +40,26 @@ class CzechBmxApp extends ConsumerWidget {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       routerConfig: router,
       builder: (context, child) {
+        final authAsync = ref.watch(authProvider);
+        final isLoading = authAsync is AsyncLoading;
+
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(
               MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.3),
             ),
           ),
-          child: child!,
+          child: Stack(
+            children: [
+              child!,
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 400),
+                child: isLoading
+                    ? const SplashScreen(key: ValueKey('splash'))
+                    : const SizedBox.shrink(key: ValueKey('none')),
+              ),
+            ],
+          ),
         );
       },
     );

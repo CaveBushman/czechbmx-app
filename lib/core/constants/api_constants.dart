@@ -21,7 +21,8 @@ class ApiConstants {
   static const String authRefresh = '/api/auth/token/refresh/';
   static const String authRegister = '/api/auth/register/';
   static const String authPasswordReset = '/api/auth/password/reset/';
-  static const String authPasswordResetConfirm = '/api/auth/password/reset/confirm/';
+  static const String authPasswordResetConfirm =
+      '/api/auth/password/reset/confirm/';
   static const String authPasswordChange = '/api/auth/password/change/';
 
   static const String rankingCategories = '/api/ranking/categories/';
@@ -31,6 +32,10 @@ class ApiConstants {
   static String entryCancel(int id) => '/api/entries/$id/cancel/';
   static String eventEntryInfo(int id) => '/api/events/$id/entry-info/';
   static String eventEnter(int id) => '/api/events/$id/enter/';
+  static String eventForeignEntryInfo(int id) => '/api/events/$id/foreign-entry-info/';
+  static String eventForeignEnter(int id) => '/api/events/$id/foreign-enter/';
+  static String foreignEntryCancel(int id) => '/api/entries/foreign/$id/cancel/';
+  static String eventRegisteredRiders(int id) => '/event/entry-riders/$id';
 
   static const String shopCategories = '/api/eshop/categories/';
   static const String shopProducts = '/api/eshop/products/';

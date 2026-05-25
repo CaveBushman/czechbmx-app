@@ -39,6 +39,13 @@ class AppTheme {
         fontWeight: FontWeight.w600,
         color: primary,
       ),
+      // titleSmall must be explicit — GoogleFonts.barlowTextTheme() inherits
+      // Material's default near-black, making it invisible on dark cards.
+      titleSmall: GoogleFonts.barlow(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: primary,
+      ),
       bodyLarge: GoogleFonts.barlow(
         fontSize: 16,
         fontWeight: FontWeight.w400,

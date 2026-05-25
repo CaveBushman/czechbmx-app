@@ -1,15 +1,21 @@
+import 'dart:ui';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/widgets/in_app_browser.dart';
-
+import '../../../core/widgets/splash_screen.dart';
+import 'foreign_entry_sheet.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../entries/entries_repository.dart';
 import '../../entries/providers/entries_provider.dart';
+import '../../riders/providers/rider_provider.dart';
 import '../models/event_model.dart';
 import '../providers/event_provider.dart';
 
@@ -24,9 +30,7 @@ class EventDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       body: eventAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
+        loading: () => const SplashLoadingBox(),
         error: (err, _) => _EventDetailError(
           message: err.toString(),
           onRetry: () => ref.invalidate(eventDetailProvider(id)),
@@ -49,64 +53,90 @@ class _EventDetailContent extends StatelessWidget {
       slivers: [
         SliverAppBar(
           pinned: true,
-          expandedHeight: 250,
-          title: Text(event.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          flexibleSpace: FlexibleSpaceBar(
-            background: _EventHero(event: event),
+          expandedHeight: 280,
+          backgroundColor: colors.background.withValues(alpha: 0.8),
+          flexibleSpace: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: FlexibleSpaceBar(
+                background: _EventHero(event: event),
+                stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+              ),
+            ),
           ),
+          centerTitle: false,
+          title: Text(
+            event.name.toUpperCase(),
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: -0.5),
+          ),
+          actions: [
+            Builder(
+              builder: (ctx) => IconButton(
+                icon: const Icon(Icons.share_outlined),
+                tooltip: ctx.l10n.share,
+                onPressed: () =>
+                    Share.share('https://czechbmx.cz/event/${event.id}'),
+              ),
+            ),
+          ],
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           sliver: SliverList(
             delegate: SliverChildListDelegate.fixed([
-              _StatusPanel(event: event),
-              const SizedBox(height: 14),
-              _ActionGrid(event: event),
-              const SizedBox(height: 14),
-              _Section(
-                title: context.l10n.eventInfo,
-                children: [
-                  _InfoTile(
-                    icon: Icons.calendar_month_outlined,
-                    label: context.l10n.eventDate,
-                    value: event.date != null
-                        ? DateFormat.yMMMMEEEEd(context.l10n.languageCode)
-                            .format(event.date!)
-                        : context.l10n.noData,
-                  ),
-                  _InfoTile(
-                    icon: Icons.flag_outlined,
-                    label: context.l10n.eventType,
-                    value: event.type.label,
-                  ),
-                  if (event.system != null)
-                    _InfoTile(
-                      icon: Icons.account_tree_outlined,
-                      label: context.l10n.raceSystem,
-                      value: event.system!,
+              _AnimatedEntry(index: 0, child: _StatusPanel(event: event)),
+              const SizedBox(height: 24),
+              
+              // Bento Grid pro hlavní info
+              _AnimatedEntry(
+                index: 1,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: _BentoCard(
+                        icon: Icons.calendar_month_outlined,
+                        label: context.l10n.eventDate,
+                        value: event.date != null
+                            ? DateFormat('d. MMMM', context.l10n.languageCode).format(event.date!)
+                            : context.l10n.noData,
+                        subValue: event.date != null ? DateFormat('EEEE', context.l10n.languageCode).format(event.date!) : null,
+                        primary: true,
+                      ),
                     ),
-                  if (event.director != null)
-                    _InfoTile(
-                      icon: Icons.supervisor_account_outlined,
-                      label: context.l10n.raceDirector,
-                      value: event.director!,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: _BentoCard(
+                        icon: Icons.flag_outlined,
+                        label: context.l10n.eventType,
+                        value: event.type.label,
+                        color: _eventTypeColor(event.type, context),
+                      ),
                     ),
-                  if (event.isUciRace || event.uciEventCode != null)
-                    _InfoTile(
-                      icon: Icons.public_outlined,
-                      label: 'UCI',
-                      value: event.uciEventCode ?? context.l10n.yes,
-                    ),
-                  if (event.doubleRace)
-                    _InfoTile(
-                      icon: Icons.looks_two_outlined,
-                      label: context.l10n.format,
-                      value: context.l10n.twoDays,
-                    ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(height: 24),
+              
+              if (event.organizerName != null) ...[
+                _AnimatedEntry(index: 2, child: _OrganizerCard(event: event)),
+                const SizedBox(height: 24),
+              ],
+
+              _AnimatedEntry(index: 3, child: _ActionGrid(event: event)),
+              const SizedBox(height: 20),
+
+              // Technické detaily v čistším gridu
+              if (event.system != null || event.director != null || event.uciEventCode != null)
+                _AnimatedEntry(
+                  index: 4,
+                  child: _TechnicalGrid(event: event),
+                ),
+
               if (event.eshopPickupEnabled) ...[
-                const SizedBox(height: 14),
+                const SizedBox(height: 20),
                 _Section(
                   title: context.l10n.eshopPickup,
                   children: [
@@ -132,7 +162,7 @@ class _EventDetailContent extends StatelessWidget {
                 ),
               ],
               if (event.documentLinks.isNotEmpty) ...[
-                const SizedBox(height: 14),
+                const SizedBox(height: 20),
                 _Section(
                   title: context.l10n.documents,
                   children: event.documentLinks
@@ -146,17 +176,10 @@ class _EventDetailContent extends StatelessWidget {
                       .toList(),
                 ),
               ],
-              const SizedBox(height: 14),
-              OutlinedButton.icon(
-                onPressed: () => _openUrl(event.webDetailUrl),
-                icon: const Icon(Icons.open_in_new),
-                label: Text(context.l10n.openOnWeb),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: colors.textPrimary,
-                  side: BorderSide(color: colors.border),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
+              if (event.photos.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                _EventGallery(photos: event.photos),
+              ],
             ]),
           ),
         ),
@@ -173,33 +196,51 @@ class _EventHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final typeColor = _eventTypeColor(event.type, context);
-    final date = event.date;
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        gradient: RadialGradient(
+          center: const Alignment(-0.8, -0.5),
+          radius: 1.5,
           colors: [
-            typeColor.withValues(alpha: 0.92),
-            const Color(0xFF111827),
+            typeColor.withValues(alpha: 0.6),
+            context.colors.background,
           ],
         ),
       ),
       child: Stack(
         children: [
+          // Noise/Texture overlay simulation
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.03,
+              child: Image.network(
+                'https://www.transparenttextures.com/patterns/carbon-fibre.png',
+                repeat: ImageRepeat.repeat,
+              ),
+            ),
+          ),
+          // "CZE" Watermark - symbol národního týmu a racingu
+          Positioned(
+            right: -20,
+            bottom: -10,
+            child: Opacity(
+              opacity: 0.08,
+              child: Text(
+                'CZE',
+                style: TextStyle(
+                  fontSize: 180,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  fontStyle: FontStyle.italic,
+                  letterSpacing: -10,
+                ),
+              ),
+            ),
+          ),
           Positioned.fill(
             child: CustomPaint(
               painter:
-                  _TrackPainter(color: Colors.white.withValues(alpha: 0.1)),
-            ),
-          ),
-          Positioned(
-            right: -16,
-            bottom: 18,
-            child: Icon(
-              Icons.directions_bike,
-              size: 152,
-              color: Colors.white.withValues(alpha: 0.12),
+                  _TrackPainter(color: Colors.white.withValues(alpha: 0.15)),
             ),
           ),
           Positioned(
@@ -213,40 +254,37 @@ class _EventHero extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _HeroBadge(label: event.type.label),
-                    if (event.canceled)
-                      _HeroBadge(
-                        label: context.l10n.canceled,
-                        color: Colors.redAccent,
-                      ),
-                    if (event.isRegistrationOpen)
-                      _HeroBadge(
-                        label: context.l10n.registrationOpen,
-                        color: AppColors.success,
-                      ),
+                    Hero(
+                      tag: 'event_type_${event.id}',
+                      child: _HeroBadge(label: event.type.label),
+                    ),
+                    if (event.canceled) _HeroBadge(label: context.l10n.canceled, color: Colors.redAccent),
+                    if (event.isRegistrationOpen) _HeroBadge(label: context.l10n.registrationOpen, color: AppColors.success),
                   ],
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  event.name,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.displayMedium!.copyWith(
-                    color: Colors.white,
-                    shadows: const [
-                      Shadow(
-                        color: Colors.black54,
-                        offset: Offset(0, 2),
-                        blurRadius: 12,
-                      ),
-                    ],
+                Hero(
+                  tag: 'event_title_${event.id}',
+                  child: Text(
+                    event.name,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.displayLarge!.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -1.5,
+                      height: 1.1,
+                      shadows: [
+                        Shadow(color: Colors.black.withValues(alpha: 0.5), offset: const Offset(0, 4), blurRadius: 15),
+                      ],
+                    ),
                   ),
                 ),
-                if (date != null) ...[
+                if (event.date != null) ...[
                   const SizedBox(height: 8),
                   Text(
                     DateFormat.yMMMMEEEEd(context.l10n.languageCode)
-                        .format(date),
+                        .format(event.date!),
                     style: Theme.of(context).textTheme.bodyMedium!.copyWith(
                           color: Colors.white.withValues(alpha: 0.88),
                         ),
@@ -270,20 +308,236 @@ class _HeroBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final badgeColor = color ?? Colors.white;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: badgeColor.withValues(alpha: color == null ? 0.16 : 0.2),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: badgeColor.withValues(alpha: 0.42)),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          color: color ?? Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(100),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: badgeColor.withValues(alpha: 0.15),
+          border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
         ),
+        child: Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            color: color ?? Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.8,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BentoCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final String? subValue;
+  final Color? color;
+  final bool primary;
+
+  const _BentoCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.subValue,
+    this.color,
+    this.primary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final accentColor = color ?? (primary ? AppColors.primary : colors.textPrimary);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: accentColor.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: accentColor.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: accentColor, size: 28),
+          const SizedBox(height: 24),
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+              color: colors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: primary ? accentColor : colors.textPrimary,
+                  height: 1.1,
+                ),
+          ),
+          if (subValue != null)
+            Text(
+              subValue!,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TechnicalGrid extends StatelessWidget {
+  final EventModel event;
+  const _TechnicalGrid({required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: context.colors.card,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: context.colors.border.withValues(alpha: 0.5)),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.05,
+              child: Image.network(
+                'https://www.transparenttextures.com/patterns/carbon-fibre.png',
+                repeat: ImageRepeat.repeat,
+              ),
+            ),
+          ),
+          Column(
+            children: [
+              if (event.system != null)
+                _InfoTile(icon: Icons.account_tree_outlined, label: context.l10n.raceSystem, value: event.system!),
+          if (event.director != null)
+            _InfoTile(icon: Icons.supervisor_account_outlined, label: context.l10n.raceDirector, value: event.director!),
+          if (event.isUciRace || event.uciEventCode != null)
+            _InfoTile(icon: Icons.public_outlined, label: 'UCI CODE', value: event.uciEventCode ?? context.l10n.yes),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnimatedEntry extends StatelessWidget {
+  final int index;
+  final Widget child;
+
+  const _AnimatedEntry({required this.index, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 400 + (index * 100)),
+      curve: Curves.easeOutQuart,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 30 * (1 - value)),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+class _OrganizerCard extends StatelessWidget {
+  final EventModel event;
+
+  const _OrganizerCard({required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.location_city_outlined,
+              color: AppColors.primary,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.l10n.organizer.toUpperCase(),
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  event.organizerName!,
+                  style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          if (event.hasTrackCoordinates)
+            IconButton.filledTonal(
+              onPressed: () => _openNavigation(event),
+              icon: const Icon(Icons.near_me_outlined),
+              style: IconButton.styleFrom(
+                foregroundColor: AppColors.primary,
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -312,8 +566,15 @@ class _StatusPanel extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: statusColor.withValues(alpha: 0.45)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -363,19 +624,18 @@ class _ActionGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = <_EventAction>[
-      if (event.isRegistrationOpen && event.uecLink == null)
+      if (event.isRegistrationOpen)
         _EventAction(
           icon: Icons.app_registration,
           label: context.l10n.register,
           onTap: () => _openNativeEntrySheet(context, event),
           primary: true,
         ),
-      if (event.uecLink != null)
+      if (event.isRegistrationOpen)
         _EventAction(
-          icon: Icons.open_in_new,
-          label: context.l10n.register,
-          url: event.uecLink!,
-          primary: true,
+          icon: Icons.public_outlined,
+          label: context.l10n.foreignRider,
+          onTap: () => openForeignEntrySheet(context, event),
         ),
       if (event.hasTrackCoordinates)
         _EventAction(
@@ -386,7 +646,7 @@ class _ActionGrid extends StatelessWidget {
       _EventAction(
         icon: Icons.groups_outlined,
         label: context.l10n.registeredRiders,
-        url: event.webRidersUrl,
+        onTap: () => context.push('/events/${event.id}/riders'),
       ),
       _EventAction(
         icon: Icons.description_outlined,
@@ -439,15 +699,50 @@ class _EventAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return FilledButton.icon(
-      onPressed: onTap ?? () => _openUrl(url!, context: context, title: label),
-      icon: Icon(icon, size: 18),
-      label: Text(label, overflow: TextOverflow.ellipsis),
-      style: FilledButton.styleFrom(
-        backgroundColor: primary ? AppColors.primary : colors.surfaceVariant,
-        foregroundColor: primary ? Colors.white : colors.textPrimary,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    return InkWell(
+      onTap: onTap ?? () => _openUrl(url!, context: context, title: label),
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: primary ? AppColors.primary : colors.card,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: primary 
+                ? AppColors.primary 
+                : colors.border.withValues(alpha: 0.5),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: primary ? Colors.white : AppColors.primary,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: primary ? Colors.white : colors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -521,9 +816,24 @@ class _EventEntrySheetState extends ConsumerState<_EventEntrySheet> {
     }
 
     if (riderUciId == null) {
-      return const _EntrySheetScaffold(
-        title: 'Přihlášení na závod',
-        child: Text('K účtu není navázaný žádný jezdec.'),
+      return _EntrySheetScaffold(
+        title: context.l10n.register,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(context.l10n.noRiderLinked),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                openForeignEntrySheet(context, widget.event);
+              },
+              icon: const Icon(Icons.public_outlined),
+              label: Text(context.l10n.foreignRiderEntry),
+            ),
+          ],
+        ),
       );
     }
 
@@ -588,18 +898,23 @@ class _EventEntrySheetState extends ConsumerState<_EventEntrySheet> {
         }
 
         final totalFee = info.feeFor(_selected);
+        final rider =
+            ref.watch(riderDetailProvider(info.riderUciId)).valueOrNull;
+        final riderName = _firstNonEmpty([
+          info.riderFullName,
+          rider?.fullName,
+          user.fullName,
+        ]);
         return _EntrySheetScaffold(
           title: info.eventName,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Jezdec UCI ID: ${info.riderUciId}',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium!
-                    .copyWith(color: colors.textSecondary),
+              _EntryRiderHeader(
+                riderName: riderName,
+                uciId: info.riderUciId,
+                textColor: colors.textSecondary,
               ),
               const SizedBox(height: 12),
               ...info.options.entries.map((entry) {
@@ -696,6 +1011,48 @@ class _EventEntrySheetState extends ConsumerState<_EventEntrySheet> {
   }
 }
 
+class _EntryRiderHeader extends StatelessWidget {
+  final String? riderName;
+  final int uciId;
+  final Color textColor;
+
+  const _EntryRiderHeader({
+    required this.riderName,
+    required this.uciId,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final name = riderName?.trim();
+    if (name == null || name.isEmpty) {
+      return Text(
+        'Jezdec UCI ID: $uciId',
+        style:
+            Theme.of(context).textTheme.bodyMedium!.copyWith(color: textColor),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Jezdec: $name',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'UCI ID: $uciId',
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium!
+              .copyWith(color: textColor),
+        ),
+      ],
+    );
+  }
+}
+
 class _EntrySheetScaffold extends StatelessWidget {
   final String title;
   final Widget child;
@@ -751,6 +1108,14 @@ String _entryOptionLabel(String key, EventEntryOption option) {
   };
 }
 
+String? _firstNonEmpty(Iterable<String?> values) {
+  for (final value in values) {
+    final trimmed = value?.trim();
+    if (trimmed != null && trimmed.isNotEmpty) return trimmed;
+  }
+  return null;
+}
+
 class _Section extends StatelessWidget {
   final String title;
   final List<Widget> children;
@@ -762,8 +1127,15 @@ class _Section extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: context.colors.card,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: context.colors.border),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: context.colors.border.withValues(alpha: 0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -793,19 +1165,30 @@ class _InfoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: context.colors.textMuted),
-      title: Text(label, style: Theme.of(context).textTheme.bodySmall),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 2),
-        child: Text(
-          value,
-          style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                color: context.colors.textPrimary,
-                fontWeight: FontWeight.w700,
-              ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: context.colors.surfaceVariant,
+          borderRadius: BorderRadius.circular(12),
         ),
+        child: Icon(icon, color: context.colors.textSecondary, size: 20),
       ),
-      dense: true,
+      title: Text(
+        label,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.colors.textMuted,
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+      subtitle: Text(
+        value,
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: context.colors.textPrimary,
+              fontWeight: FontWeight.w800,
+              height: 1.3,
+            ),
+      ),
     );
   }
 }
@@ -824,11 +1207,28 @@ class _LinkTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: context.colors.textMuted),
-      title: Text(label),
-      trailing: const Icon(Icons.open_in_new, size: 18),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: context.colors.surfaceVariant,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: context.colors.textSecondary, size: 20),
+      ),
+      title: Text(
+        label,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: context.colors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+      trailing: Icon(
+        Icons.arrow_forward_ios_rounded,
+        size: 14,
+        color: context.colors.textMuted,
+      ),
       onTap: () => _openUrl(url, context: context, title: label),
-      dense: true,
     );
   }
 }
@@ -869,31 +1269,49 @@ class _EventDetailError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.flag_outlined,
-              size: 64,
-              color: context.colors.textMuted,
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                size: 64,
+                color: AppColors.error,
+              ),
             ),
             const SizedBox(height: 16),
             Text(
               context.l10n.eventsLoadFailed,
-              style: Theme.of(context).textTheme.headlineMedium,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: colors.textPrimary,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colors.textMuted,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
+            FilledButton.icon(
               onPressed: onRetry,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
               icon: const Icon(Icons.refresh),
               label: Text(context.l10n.retry),
             ),
@@ -972,17 +1390,27 @@ String _formatDateTime(BuildContext context, DateTime dateTime) {
       .format(dateTime);
 }
 
-bool _isYouTube(String url) {
+/// Returns true for URLs that should open outside the app.
+///
+/// Currently we keep YouTube and Stripe checkout external, while other
+/// HTTP/HTTPS links are rendered inside the app browser.
+bool _isExternalBrowserLink(String url) {
   final host = Uri.tryParse(url)?.host ?? '';
-  return host.contains('youtube.com') || host.contains('youtu.be');
+  return host.contains('youtube.com') ||
+      host.contains('youtu.be') ||
+      host.contains('stripe.com');
 }
 
 Future<void> _openUrl(String url,
     {BuildContext? context, String? title}) async {
-  if (context != null && context.mounted && !_isYouTube(url)) {
+  final external = _isExternalBrowserLink(url);
+  if (context != null && context.mounted && !external) {
+    // Open ordinary links in the app via WebView.
     openInApp(context, url, title: title);
     return;
   }
+
+  // YouTube, Stripe, and other external schemes are opened in the external browser.
   final uri = Uri.parse(url);
   if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
     await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
@@ -990,6 +1418,8 @@ Future<void> _openUrl(String url,
 }
 
 Future<void> _openNavigation(EventModel event) async {
+  // Navigation is intentionally launched externally because the app does not
+  // provide a built-in maps UI for directions.
   final lat = event.organizerLat;
   final lon = event.organizerLon;
   if (lat == null || lon == null) return;
@@ -1066,4 +1496,182 @@ class _EventDocumentLink {
   });
 
   String label(BuildContext context) => context.l10n.t(labelKey);
+}
+
+// ── Event photo gallery ───────────────────────────────────────────────────────
+
+class _EventGallery extends StatelessWidget {
+  final List<EventPhoto> photos;
+  const _EventGallery({required this.photos});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(context.l10n.gallery,
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 200,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: photos.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final photo = photos[index];
+              return GestureDetector(
+                onTap: () => _openGallery(context, index),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: CachedNetworkImage(
+                    imageUrl: photo.photoUrl,
+                    width: 260,
+                    height: 200,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(
+                      width: 260,
+                      color: context.colors.surfaceVariant,
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      width: 260,
+                      decoration: BoxDecoration(
+                        color: context.colors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.image_not_supported_outlined,
+                          color: context.colors.textMuted.withValues(alpha: 0.5),
+                          size: 32,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _openGallery(BuildContext context, int initialIndex) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black87,
+        pageBuilder: (_, __, ___) =>
+            _GalleryViewer(photos: photos, initialIndex: initialIndex),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 200),
+      ),
+    );
+  }
+}
+
+class _GalleryViewer extends StatefulWidget {
+  final List<EventPhoto> photos;
+  final int initialIndex;
+  const _GalleryViewer({required this.photos, required this.initialIndex});
+
+  @override
+  State<_GalleryViewer> createState() => _GalleryViewerState();
+}
+
+class _GalleryViewerState extends State<_GalleryViewer> {
+  late final PageController _pageController;
+  late int _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final photo = widget.photos[_current];
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(color: Colors.black87),
+          ),
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.photos.length,
+            onPageChanged: (i) => setState(() => _current = i),
+            itemBuilder: (_, index) {
+              return Center(
+                child: InteractiveViewer(
+                  child: CachedNetworkImage(
+                    imageUrl: widget.photos[index].photoUrl,
+                    fit: BoxFit.contain,
+                    placeholder: (_, __) => const Center(
+                      child:
+                          CircularProgressIndicator(color: AppColors.primary),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          // Close button
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            right: 12,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 28),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          // Counter + caption
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 16,
+            left: 0,
+            right: 0,
+            child: Column(
+              children: [
+                if (photo.caption.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      photo.caption,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          shadows: [Shadow(blurRadius: 4)]),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                Text(
+                  '${_current + 1} / ${widget.photos.length}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

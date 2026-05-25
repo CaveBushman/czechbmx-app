@@ -47,6 +47,18 @@
 			</array>
 		</dict>
 	</dict>
+	<!-- Custom URL scheme for deep links: czechbmx://news/{slug} etc. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>cz.czechbmx.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>czechbmx</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Pro změnu profilové fotky</string>
 	<key>NSPhotoLibraryUsageDescription</key>

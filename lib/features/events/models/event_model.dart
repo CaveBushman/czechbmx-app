@@ -74,6 +74,7 @@ class EventModel {
   final String? uecLink;
   final String? uciEventCode;
   final bool canceled;
+  final List<EventPhoto> photos;
 
   const EventModel({
     required this.id,
@@ -107,6 +108,7 @@ class EventModel {
     this.uecLink,
     this.uciEventCode,
     required this.canceled,
+    this.photos = const [],
   });
 
   bool get isRegistrationOpen {
@@ -186,6 +188,9 @@ class EventModel {
       uecLink: _stringOrNull(json['uec_link']),
       uciEventCode: _stringOrNull(json['uci_event_code']),
       canceled: json['canceled'] as bool? ?? false,
+      photos: (json['photos'] as List<dynamic>? ?? [])
+          .map((e) => EventPhoto.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -206,6 +211,20 @@ class EventModel {
     if (value is String) return double.tryParse(value.replaceAll(',', '.'));
     return null;
   }
+}
+
+class EventPhoto {
+  final int id;
+  final String photoUrl;
+  final String caption;
+
+  const EventPhoto({required this.id, required this.photoUrl, this.caption = ''});
+
+  factory EventPhoto.fromJson(Map<String, dynamic> json) => EventPhoto(
+        id: json['id'] as int,
+        photoUrl: json['photo_url'] as String? ?? '',
+        caption: json['caption'] as String? ?? '',
+      );
 }
 
 class PaginatedEvents {

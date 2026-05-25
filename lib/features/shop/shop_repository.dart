@@ -15,7 +15,8 @@ class ShopRepository {
   Future<List<CategoryModel>> fetchCategories() async {
     try {
       final r = await _dio.get(ApiConstants.shopCategories);
-      final list = r.data is List ? r.data as List : (r.data['results'] as List);
+      final list =
+          r.data is List ? r.data as List : (r.data['results'] as List);
       return list
           .map((e) => CategoryModel.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -24,13 +25,11 @@ class ShopRepository {
     }
   }
 
-  Future<List<ProductModel>> fetchProducts({String? categorySlug}) async {
+  Future<List<ProductModel>> fetchProducts() async {
     try {
-      final r = await _dio.get(
-        ApiConstants.shopProducts,
-        queryParameters: categorySlug != null ? {'category': categorySlug} : null,
-      );
-      final list = r.data is List ? r.data as List : (r.data['results'] as List);
+      final r = await _dio.get(ApiConstants.shopProducts);
+      final list =
+          r.data is List ? r.data as List : (r.data['results'] as List);
       return list
           .map((e) => ProductModel.fromJson(e as Map<String, dynamic>))
           .toList();

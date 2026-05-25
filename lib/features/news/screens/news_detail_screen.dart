@@ -4,9 +4,12 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/widgets/in_app_browser.dart';
+import '../../../core/widgets/splash_screen.dart';
 import '../../../core/l10n/app_localizations.dart';
+import '../../../core/l10n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/news_model.dart';
 import '../providers/news_provider.dart';
@@ -22,11 +25,7 @@ class NewsDetailScreen extends HookConsumerWidget {
     final newsAsync = ref.watch(newsDetailProvider(slug));
 
     return newsAsync.when(
-      loading: () => const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
-      ),
+      loading: () => const SplashScreen(),
       error: (err, _) => Scaffold(
         appBar: AppBar(),
         body: Center(
@@ -41,13 +40,14 @@ class NewsDetailScreen extends HookConsumerWidget {
   }
 }
 
-class _NewsDetailBody extends HookWidget {
+class _NewsDetailBody extends HookConsumerWidget {
   final NewsModel news;
 
   const _NewsDetailBody({required this.news});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final localeCode = ref.watch(currentLocaleCodeProvider);
     final scrollController = useScrollController();
     final showTitle = useState(false);
     final colors = context.colors;
@@ -74,6 +74,16 @@ class _NewsDetailBody extends HookWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.share_outlined),
+                tooltip: context.l10n.share,
+                onPressed: () {
+                  final identifier = news.slug ?? news.id.toString();
+                  Share.share('https://czechbmx.cz/news/$identifier');
+                },
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
@@ -107,9 +117,18 @@ class _NewsDetailBody extends HookWidget {
                     news.title,
                     style: Theme.of(context).textTheme.displayMedium,
                   ),
-                  if (news.publishedAudio && news.audioUrl != null) ...[
-                    const SizedBox(height: 20),
-                    NewsAudioPlayer(url: news.audioUrl!),
+                  if (news.publishedAudio) ...[
+                    Builder(builder: (ctx) {
+                      final url = news.audioUrlForLocale(localeCode);
+                      if (url == null) return const SizedBox.shrink();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 20),
+                          NewsAudioPlayer(url: url),
+                        ],
+                      );
+                    }),
                   ],
                   if (news.prefix != null && news.prefix!.isNotEmpty) ...[
                     const SizedBox(height: 16),
@@ -216,22 +235,38 @@ class _HtmlContent extends StatelessWidget {
         if (uri == null || !isWebUrl) return false;
         final isYt = uri.host.contains('youtube.com') || uri.host.contains('youtu.be');
         if (isYt) {
+          // YouTube links are opened in the external player/application.
           await launchUrl(uri, mode: LaunchMode.externalApplication);
         } else if (context.mounted) {
+          // Other web content is displayed inside our in-app browser.
           openInApp(context, url);
         }
         return true;
       },
       customStylesBuilder: (element) {
-        if (element.localName == 'a') {
-          return {'color': '#E84000', 'text-decoration': 'none'};
-        }
-        if (element.localName == 'blockquote') {
-          return {
-            'border-left': '3px solid #E84000',
-            'padding-left': '12px',
-            'color': blockquoteColor,
-          };
+        switch (element.localName) {
+          case 'a':
+            return {'color': '#E84000', 'text-decoration': 'none'};
+          case 'blockquote':
+            return {
+              'border-left': '3px solid #E84000',
+              'padding-left': '12px',
+              'margin-left': '0',
+              'color': blockquoteColor,
+            };
+          case 'p':
+          case 'div':
+            return {'margin-top': '0', 'margin-bottom': '8px'};
+          case 'h1':
+          case 'h2':
+          case 'h3':
+          case 'h4':
+            return {'margin-top': '14px', 'margin-bottom': '4px'};
+          case 'ul':
+          case 'ol':
+            return {'margin-top': '0', 'margin-bottom': '8px', 'padding-left': '20px'};
+          case 'li':
+            return {'margin-bottom': '2px'};
         }
         return null;
       },

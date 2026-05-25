@@ -25,6 +25,7 @@ dependencies:
 
   # HTML rendering (CKEditor content z API)
   flutter_widget_from_html: ^0.15.2
+  html: ^0.15.6
 
   # Images
   cached_network_image: ^3.4.1
@@ -45,6 +46,7 @@ dependencies:
   just_audio: ^0.9.42
   shared_preferences: ^2.3.3
   image_picker: ^1.1.2
+  share_plus: ^10.1.4
 
 dev_dependencies:
   flutter_test:

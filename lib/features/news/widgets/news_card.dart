@@ -1,11 +1,19 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
+import 'package:html/parser.dart' show parse;
 import 'package:intl/intl.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/news_model.dart';
+
+// Strips HTML tags and decodes entities from an HTML string.
+String _stripHtml(String html) {
+  final doc = parse(html);
+  return doc.body?.text.trim() ?? '';
+}
 
 class NewsCard extends StatelessWidget {
   final NewsModel news;
@@ -51,7 +59,10 @@ class _FeaturedCard extends HookWidget {
       onPointerUp: onPointerEnd,
       onPointerCancel: onPointerEnd,
       child: GestureDetector(
-        onTap: () => context.go('/news/${news.identifier}'),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          context.go('/news/${news.identifier}');
+        },
         child: TweenAnimationBuilder<Offset>(
           tween: Tween(begin: Offset.zero, end: tilt.value),
           duration: tilt.value == Offset.zero
@@ -206,7 +217,7 @@ class _FeaturedCardContent extends StatelessWidget {
             ),
           ),
 
-          // Top badge
+          // Top badges
           Positioned(
             top: 12,
             left: 12,
@@ -215,6 +226,35 @@ class _FeaturedCardContent extends StatelessWidget {
               color: AppColors.primary,
             ),
           ),
+          if (news.publishedAudio)
+            Positioned(
+              top: 12,
+              right: 12,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.headphones, size: 13, color: Colors.white),
+                    SizedBox(width: 4),
+                    Text(
+                      'AUDIO',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           // Bottom: title + meta
           Positioned(
@@ -251,7 +291,7 @@ class _FeaturedCardContent extends StatelessWidget {
   }
 }
 
-// ── Standard card with press animation ───────────────────────────────────────
+// ── Standard card — vertical editorial layout ─────────────────────────────────
 
 class _StandardCard extends HookWidget {
   final NewsModel news;
@@ -260,9 +300,13 @@ class _StandardCard extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final pressed = useState(false);
+    final colors = context.colors;
 
     return GestureDetector(
-      onTap: () => context.go('/news/${news.identifier}'),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        context.go('/news/${news.identifier}');
+      },
       onTapDown: (_) => pressed.value = true,
       onTapUp: (_) => pressed.value = false,
       onTapCancel: () => pressed.value = false,
@@ -273,71 +317,117 @@ class _StandardCard extends HookWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           decoration: BoxDecoration(
-            color: context.colors.card,
-            borderRadius: BorderRadius.circular(12),
+            color: colors.card,
+            borderRadius: BorderRadius.circular(14),
             boxShadow: pressed.value
                 ? []
                 : [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
+                      color: Colors.black.withValues(alpha: 0.07),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
                   ],
           ),
           clipBehavior: Clip.antiAlias,
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Thumbnail
-              if (news.photo01Url != null)
-                Hero(
-                  tag: 'news_${news.id}',
-                  child: CachedNetworkImage(
-                    imageUrl: news.photo01Url!,
-                    width: 110,
-                    height: 110,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(
-                      width: 110,
-                      height: 110,
-                      color: context.colors.surfaceVariant,
-                    ),
-                    errorWidget: (_, __, ___) => Container(
-                      width: 110,
-                      height: 110,
-                      color: context.colors.surfaceVariant,
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  width: 110,
-                  height: 110,
-                  color: context.colors.surfaceVariant,
-                  child: Icon(
-                    Icons.image_not_supported_outlined,
-                    color: context.colors.textMuted,
-                  ),
-                ),
-
-              // Text
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        news.title,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium,
+              // Full-width image
+              Stack(
+                children: [
+                  if (news.photo01Url != null)
+                    Hero(
+                      tag: 'news_${news.id}',
+                      child: CachedNetworkImage(
+                        imageUrl: news.photo01Url!,
+                        height: 160,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          height: 160,
+                          color: colors.surfaceVariant,
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          height: 160,
+                          color: colors.surfaceVariant,
+                        ),
                       ),
-                      const SizedBox(height: 6),
-                      _MetaRow(news: news),
+                    )
+                  else
+                    Container(
+                      height: 100,
+                      color: colors.surfaceVariant,
+                      child: Center(
+                        child: Icon(
+                          Icons.newspaper_outlined,
+                          size: 36,
+                          color: colors.textMuted,
+                        ),
+                      ),
+                    ),
+                  // Audio badge on image
+                  if (news.publishedAudio)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.headphones,
+                                size: 13, color: Colors.white),
+                            SizedBox(width: 4),
+                            Text(
+                              'AUDIO',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              // Text block
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      news.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium!.copyWith(
+                            height: 1.3,
+                          ),
+                    ),
+                    if (news.prefix != null && news.prefix!.isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        _stripHtml(news.prefix!),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                              color: colors.textSecondary,
+                              height: 1.4,
+                            ),
+                      ),
                     ],
-                  ),
+                    const SizedBox(height: 8),
+                    _MetaRow(news: news),
+                  ],
                 ),
               ),
             ],
@@ -383,8 +473,6 @@ class _MetaRow extends StatelessWidget {
                 style: style),
           ],
         ),
-        if (news.publishedAudio)
-          const Icon(Icons.headphones, size: 14, color: AppColors.primary),
       ],
     );
   }

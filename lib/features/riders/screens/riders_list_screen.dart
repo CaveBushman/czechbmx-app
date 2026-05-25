@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -8,9 +9,12 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/theme/app_colors.dart';
+import 'package:flutter/services.dart';
 import '../models/rider_model.dart';
+import '../providers/favorite_riders_provider.dart';
 import '../providers/rider_provider.dart';
 import '../rider_repository.dart';
+import '../widgets/riders_shimmer.dart';
 
 class RidersListScreen extends HookConsumerWidget {
   const RidersListScreen({super.key});
@@ -21,6 +25,7 @@ class RidersListScreen extends HookConsumerWidget {
     final genderFilter = useState<String?>(null);
     final bikeFilter = useState<String?>(null); // '20' | '24' | null
     final eliteOnly = useState(false);
+    final favoriteOnly = useState(false);
     final showFilters = useState(false);
     final searchDebounce = useRef<Timer?>(null);
 
@@ -52,7 +57,20 @@ class RidersListScreen extends HookConsumerWidget {
     }, [searchCtrl]);
 
     final ridersAsync = ref.watch(ridersProvider);
+    final favorites = ref.watch(favoriteRidersProvider);
     final colors = context.colors;
+    final showList = useState(false);
+
+    useEffect(() {
+      if (ridersAsync is AsyncData<List<RiderModel>>) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!showList.value) showList.value = true;
+        });
+      } else {
+        showList.value = false;
+      }
+      return null;
+    }, [ridersAsync]);
 
     return Scaffold(
       body: RefreshIndicator(
@@ -61,9 +79,18 @@ class RidersListScreen extends HookConsumerWidget {
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
-              floating: true,
-              snap: true,
-              title: Text(context.l10n.riders),
+              pinned: true,
+              backgroundColor: colors.background.withValues(alpha: 0.8),
+              flexibleSpace: ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+              title: Text(
+                context.l10n.riders.toUpperCase(),
+                style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: -0.5),
+              ),
               actions: [
                 IconButton(
                   icon: Icon(
@@ -93,11 +120,11 @@ class RidersListScreen extends HookConsumerWidget {
                                 applyFilter();
                               },
                             )
-                          : null,
+                          : Icon(Icons.search, color: colors.textMuted.withValues(alpha: 0.5)),
                       filled: true,
-                      fillColor: colors.surfaceVariant,
+                      fillColor: colors.surfaceVariant.withValues(alpha: 0.6),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: EdgeInsets.zero,
@@ -114,29 +141,35 @@ class RidersListScreen extends HookConsumerWidget {
                   genderFilter: genderFilter,
                   bikeFilter: bikeFilter,
                   eliteOnly: eliteOnly,
+                  favoriteOnly: favoriteOnly,
                   onChanged: applyFilter,
                 ),
               ),
 
             ridersAsync.when(
               loading: () => const SliverFillRemaining(
-                child: Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                ),
+                child: RidersListShimmer(),
               ),
               error: (err, _) => SliverFillRemaining(
                 child: _ErrorView(error: err, ref: ref),
               ),
               data: (riders) {
-                if (riders.isEmpty) {
+                final displayed = favoriteOnly.value
+                    ? riders.where((r) => favorites.contains(r.uciId)).toList()
+                    : riders;
+                if (displayed.isEmpty) {
                   return const SliverFillRemaining(child: _EmptyView());
                 }
                 return SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                   sliver: SliverList.separated(
-                    itemCount: riders.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) => _RiderTile(rider: riders[i]),
+                    itemCount: displayed.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (_, i) => _AnimatedRiderTile(
+                      rider: displayed[i],
+                      show: showList.value,
+                      index: i,
+                    ),
                   ),
                 );
               },
@@ -154,64 +187,81 @@ class _FilterBar extends StatelessWidget {
   final ValueNotifier<String?> genderFilter;
   final ValueNotifier<String?> bikeFilter;
   final ValueNotifier<bool> eliteOnly;
+  final ValueNotifier<bool> favoriteOnly;
   final VoidCallback onChanged;
 
   const _FilterBar({
     required this.genderFilter,
     required this.bikeFilter,
     required this.eliteOnly,
+    required this.favoriteOnly,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: context.colors.surface,
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-      child: Wrap(
-        spacing: 8,
-        children: [
-          _Chip(
-            label: context.l10n.men,
-            selected: genderFilter.value == 'Muž',
-            onTap: () {
-              genderFilter.value = genderFilter.value == 'Muž' ? null : 'Muž';
-              onChanged();
-            },
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Container(
+          color: context.colors.background.withValues(alpha: 0.5),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _Chip(
+                label: context.l10n.men,
+                selected: genderFilter.value == 'Muž',
+                onTap: () {
+                  genderFilter.value = genderFilter.value == 'Muž' ? null : 'Muž';
+                  onChanged();
+                },
+              ),
+              _Chip(
+                label: context.l10n.women,
+                selected: genderFilter.value == 'Žena',
+                onTap: () {
+                  genderFilter.value = genderFilter.value == 'Žena' ? null : 'Žena';
+                  onChanged();
+                },
+              ),
+              _Chip(
+                label: '20"',
+                selected: bikeFilter.value == '20',
+                onTap: () {
+                  bikeFilter.value = bikeFilter.value == '20' ? null : '20';
+                  onChanged();
+                },
+              ),
+              _Chip(
+                label: '24"',
+                selected: bikeFilter.value == '24',
+                onTap: () {
+                  bikeFilter.value = bikeFilter.value == '24' ? null : '24';
+                  onChanged();
+                },
+              ),
+              _Chip(
+                label: 'Elite',
+                selected: eliteOnly.value,
+                onTap: () {
+                  eliteOnly.value = !eliteOnly.value;
+                  onChanged();
+                },
+              ),
+              _Chip(
+                label: context.l10n.myRiders,
+                icon: Icons.favorite,
+                selected: favoriteOnly.value,
+                onTap: () {
+                  favoriteOnly.value = !favoriteOnly.value;
+                  onChanged();
+                },
+              ),
+            ],
           ),
-          _Chip(
-            label: context.l10n.women,
-            selected: genderFilter.value == 'Žena',
-            onTap: () {
-              genderFilter.value = genderFilter.value == 'Žena' ? null : 'Žena';
-              onChanged();
-            },
-          ),
-          _Chip(
-            label: '20"',
-            selected: bikeFilter.value == '20',
-            onTap: () {
-              bikeFilter.value = bikeFilter.value == '20' ? null : '20';
-              onChanged();
-            },
-          ),
-          _Chip(
-            label: '24"',
-            selected: bikeFilter.value == '24',
-            onTap: () {
-              bikeFilter.value = bikeFilter.value == '24' ? null : '24';
-              onChanged();
-            },
-          ),
-          _Chip(
-            label: 'Elite',
-            selected: eliteOnly.value,
-            onTap: () {
-              eliteOnly.value = !eliteOnly.value;
-              onChanged();
-            },
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -221,37 +271,84 @@ class _Chip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final IconData? icon;
 
   const _Chip({
     required this.label,
     required this.selected,
     required this.onTap,
+    this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final foreground = selected ? Colors.white : colors.textSecondary;
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary : colors.surfaceVariant,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected ? AppColors.primary : colors.border,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : colors.surfaceVariant.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected ? AppColors.primary : colors.border.withValues(alpha: 0.5),
+            ),
           ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : colors.textSecondary,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 14, color: foreground),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                  color: foreground,
+                ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AnimatedRiderTile extends StatelessWidget {
+  final RiderModel rider;
+  final bool show;
+  final int index;
+
+  const _AnimatedRiderTile({
+    required this.rider,
+    required this.show,
+    required this.index,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: show ? 1.0 : 0.0),
+      duration: Duration(milliseconds: 400 + (index % 10) * 50),
+      curve: Curves.easeOutQuart,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 24 * (1 - value)),
+            child: child,
+          ),
+        );
+      },
+      child: _RiderTile(rider: rider),
     );
   }
 }
@@ -267,104 +364,157 @@ class _RiderTile extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
     final pressed = useState(false);
+    final accentColor = avatarColor(rider.uciId);
     final teamsMap = ref.watch(teamsMapProvider).valueOrNull ?? {};
-
     final teamLabel = rider.teamName?.isNotEmpty == true
         ? rider.teamName!
         : (rider.teamId != null ? teamsMap[rider.teamId] : null) ?? '';
 
-    return GestureDetector(
-      onTap: () => context.go('/riders/${rider.uciId}'),
-      onTapDown: (_) => pressed.value = true,
-      onTapUp: (_) => pressed.value = false,
-      onTapCancel: () => pressed.value = false,
-      child: AnimatedScale(
-        scale: pressed.value ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
-        child: Container(
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          children: [
-            // Avatar
-            ClipRRect(
-              borderRadius: const BorderRadius.horizontal(
-                left: Radius.circular(10),
-              ),
-              child: rider.photoUrl != null
-                  ? CachedNetworkImage(
-                      imageUrl: rider.photoUrl!,
-                      width: 64,
-                      height: 64,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) =>
-                          _avatarPlaceholder(rider, colors),
-                    )
-                  : _avatarPlaceholder(rider, colors),
+    final isFavorite = ref.watch(
+      favoriteRidersProvider.select((s) => s.contains(rider.uciId)),
+    );
+
+    final displayCategory = [
+      if (rider.categoryLabel.isNotEmpty) rider.categoryLabel,
+      if (teamLabel.isNotEmpty) teamLabel,
+    ].join(' · ');
+
+    return AnimatedScale(
+      scale: pressed.value ? 0.98 : 1.0,
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            HapticFeedback.lightImpact();
+            context.go('/riders/${rider.uciId}');
+          },
+          onHighlightChanged: (highlight) => pressed.value = highlight,
+          child: Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: accentColor.withValues(alpha: 0.15)),
+              boxShadow: [
+                BoxShadow(
+                  color: accentColor.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            const SizedBox(width: 14),
-            // Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    rider.fullName,
-                    style: Theme.of(context).textTheme.titleMedium,
+            child: Row(
+              children: [
+                // Avatar
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: rider.photoUrl != null
+                        ? CachedNetworkImage(
+                            imageUrl: rider.photoUrl!,
+                            width: 64,
+                            height: 64,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) =>
+                                _avatarPlaceholder(rider, colors),
+                          )
+                        : _avatarPlaceholder(rider, colors),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    [
-                      if (rider.categoryLabel.isNotEmpty) rider.categoryLabel,
-                      if (teamLabel.isNotEmpty) teamLabel,
-                    ].join(' · '),
-                    style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(width: 8),
+                // Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        rider.fullName.toUpperCase(),
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        displayCategory.isEmpty ? 'BMX RIDER' : displayCategory,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: accentColor,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 10,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            // Nationality / arrow
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    rider.nationality,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: colors.textMuted,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
+                ),
+                // Nationality / favorite / arrow
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      color: colors.textMuted.withValues(alpha: 0.5),
+                      size: 14,
                     ),
-                  ),
-                  Icon(Icons.chevron_right, color: colors.textMuted, size: 18),
-                ],
-              ),
+                    GestureDetector(
+                      onTap: () => ref
+                          .read(favoriteRidersProvider.notifier)
+                          .toggle(rider.uciId),
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        margin: const EdgeInsets.fromLTRB(8, 0, 12, 0),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isFavorite 
+                            ? Colors.redAccent.withValues(alpha: 0.1) 
+                            : Colors.transparent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          transitionBuilder: (child, anim) => ScaleTransition(
+                            scale: anim,
+                            child: child,
+                          ),
+                          child: Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                            key: ValueKey(isFavorite),
+                            color: isFavorite
+                                ? Colors.redAccent
+                                : colors.textMuted,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
       ),
     );
   }
 
   Widget _avatarPlaceholder(RiderModel rider, AppColorPalette colors) {
+    final color = avatarColor(rider.uciId);
     return Container(
       width: 64,
       height: 64,
-      color: colors.surfaceVariant,
+      color: color.withValues(alpha: 0.15),
       child: Center(
         child: Text(
           rider.firstName.isNotEmpty ? rider.firstName[0].toUpperCase() : '?',
           style: TextStyle(
             fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: colors.textMuted,
+            fontWeight: FontWeight.w800,
+            color: color,
           ),
         ),
       ),

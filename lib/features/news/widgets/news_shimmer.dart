@@ -11,20 +11,25 @@ class NewsListShimmer extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       itemCount: 6,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, __) => const _NewsCardSkeleton(),
+      itemBuilder: (_, __) => const NewsCardSkeleton(),
     );
   }
 }
 
-class _NewsCardSkeleton extends StatelessWidget {
-  const _NewsCardSkeleton();
+class NewsCardSkeleton extends StatelessWidget {
+  const NewsCardSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    // Dark: border is lighter than surfaceVariant, giving enough shimmer contrast.
+    // Light: card (white) sweeps over the surfaceVariant base.
+    final highlight = colors.brightness == Brightness.dark
+        ? colors.border
+        : colors.card;
     return Shimmer.fromColors(
       baseColor: colors.surfaceVariant,
-      highlightColor: colors.card,
+      highlightColor: highlight,
       child: Container(
         height: 220,
         decoration: BoxDecoration(

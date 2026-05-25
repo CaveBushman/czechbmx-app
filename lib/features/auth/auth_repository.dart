@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../core/constants/api_constants.dart';
@@ -57,7 +59,10 @@ class UserModel {
 
   static String? _mediaUrl(dynamic value) {
     if (value is! String || value.trim().isEmpty) return null;
-    return ApiConstants.mediaPath(value.trim());
+    final trimmed = value.trim();
+    // Pokud už URL začíná protokolem http, nebudeme ji znovu prefixovat doménou
+    if (trimmed.startsWith('http')) return trimmed;
+    return ApiConstants.mediaPath(trimmed);
   }
 }
 
@@ -162,8 +167,9 @@ class AuthRepository {
   Future<UserModel> updatePhoto(String filePath) async {
     try {
       final authedDio = DioClient.create();
+      final filename = filePath.split(Platform.pathSeparator).last;
       final formData = FormData.fromMap({
-        'photo': await MultipartFile.fromFile(filePath, filename: 'photo.jpg'),
+        'photo': await MultipartFile.fromFile(filePath, filename: filename),
       });
       final response = await authedDio.patch(
         ApiConstants.authMe,

@@ -9,15 +9,7 @@ final eventsProvider = AsyncNotifierProvider<EventsNotifier, List<EventModel>>(
 );
 
 final eventDetailProvider = FutureProvider.family<EventModel, int>(
-  (ref, id) async {
-    final cached = ref
-        .read(eventsProvider)
-        .valueOrNull
-        ?.where((event) => event.id == id)
-        .firstOrNull;
-    if (cached != null) return cached;
-    return ref.read(eventRepositoryProvider).fetchEventDetail(id);
-  },
+  (ref, id) => ref.read(eventRepositoryProvider).fetchEventDetail(id),
 );
 
 class EventsNotifier extends AsyncNotifier<List<EventModel>> {

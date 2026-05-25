@@ -13,6 +13,12 @@ class NewsModel {
   final int timeToRead;
   final int viewCount;
   final String? audioFile;
+  final String? audioFileEn;
+  final String? audioFileDe;
+  final String? audioFileSk;
+  final String? audioFileEs;
+  final String? audioFileIt;
+  final String? audioFileFr;
   final bool publishedAudio;
   final bool onHomepage;
   final bool published;
@@ -33,6 +39,12 @@ class NewsModel {
     required this.timeToRead,
     required this.viewCount,
     this.audioFile,
+    this.audioFileEn,
+    this.audioFileDe,
+    this.audioFileSk,
+    this.audioFileEs,
+    this.audioFileIt,
+    this.audioFileFr,
     required this.publishedAudio,
     required this.onHomepage,
     required this.published,
@@ -49,6 +61,20 @@ class NewsModel {
       photo03 != null ? ApiConstants.mediaPath(photo03!) : null;
   String? get audioUrl =>
       audioFile != null ? ApiConstants.mediaPath(audioFile!) : null;
+
+  String? audioUrlForLocale(String languageCode) {
+    final raw = switch (languageCode) {
+      'en' => audioFileEn,
+      'de' => audioFileDe,
+      'sk' => audioFileSk,
+      'es' => audioFileEs,
+      'it' => audioFileIt,
+      'fr' => audioFileFr,
+      _ => audioFile,
+    };
+    if (raw != null && raw.isNotEmpty) return ApiConstants.mediaPath(raw);
+    return audioUrl; // fallback na češtinu
+  }
 
   String get identifier => slug ?? id.toString();
 
@@ -67,6 +93,12 @@ class NewsModel {
       timeToRead: json['time_to_read'] as int? ?? 1,
       viewCount: json['view_count'] as int? ?? 0,
       audioFile: json['audio_file'] as String?,
+      audioFileEn: json['audio_file_en'] as String?,
+      audioFileDe: json['audio_file_de'] as String?,
+      audioFileSk: json['audio_file_sk'] as String?,
+      audioFileEs: json['audio_file_es'] as String?,
+      audioFileIt: json['audio_file_it'] as String?,
+      audioFileFr: json['audio_file_fr'] as String?,
       publishedAudio: json['published_audio'] as bool? ?? false,
       onHomepage: json['on_homepage'] as bool? ?? false,
       published: json['published'] as bool? ?? false,

@@ -24,14 +24,54 @@ final shopProductsProvider =
 
 class _ProductsNotifier extends AsyncNotifier<List<ProductModel>> {
   @override
-  Future<List<ProductModel>> build() {
-    final category = ref.watch(shopSelectedCategoryProvider);
-    return ref
-        .read(shopRepositoryProvider)
-        .fetchProducts(categorySlug: category);
+  Future<List<ProductModel>> build() async {
+    final selectedCategorySlug = ref.watch(shopSelectedCategoryProvider);
+    final products = await ref.read(shopRepositoryProvider).fetchProducts();
+    if (selectedCategorySlug == null) return products;
+
+    final categories = await ref.watch(shopCategoriesProvider.future);
+    return filterProductsByCategory(
+      products: products,
+      categories: categories,
+      selectedCategorySlug: selectedCategorySlug,
+    );
   }
 
   Future<void> refresh() => Future.sync(() => ref.invalidateSelf());
+}
+
+List<ProductModel> filterProductsByCategory({
+  required List<ProductModel> products,
+  required List<CategoryModel> categories,
+  required String? selectedCategorySlug,
+}) {
+  if (selectedCategorySlug == null) return products;
+
+  final selectedCategory = _categoryForSlug(categories, selectedCategorySlug);
+  if (selectedCategory == null) return const [];
+
+  return products.where((product) {
+    if (product.categoryId != null) {
+      return product.categoryId == selectedCategory.id;
+    }
+
+    return _normalizeCategory(product.categoryName) ==
+        _normalizeCategory(selectedCategory.name);
+  }).toList();
+}
+
+CategoryModel? _categoryForSlug(
+  List<CategoryModel> categories,
+  String slug,
+) {
+  for (final category in categories) {
+    if (category.slug == slug) return category;
+  }
+  return null;
+}
+
+String _normalizeCategory(String? value) {
+  return value?.trim().toLowerCase() ?? '';
 }
 
 final shopProductProvider =

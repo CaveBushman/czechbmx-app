@@ -6,7 +6,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/in_app_browser.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class CreditTopUpScreen extends HookConsumerWidget {
@@ -53,7 +53,9 @@ class CreditTopUpScreen extends HookConsumerWidget {
         );
         final url = response.data['checkout_url'] as String?;
         if (url != null && context.mounted) {
-          await openInApp(context, url, title: 'Platba kartou');
+          final uri = Uri.parse(url);
+          // Stripe checkout is handled externally, not inside the app WebView.
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
           ref.read(authProvider.notifier).refreshUser();
         }
       } on DioException catch (e) {

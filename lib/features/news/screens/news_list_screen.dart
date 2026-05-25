@@ -205,10 +205,8 @@ class _ListFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     if (isLoadingMore) {
       return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
+        padding: EdgeInsets.only(top: 4, bottom: 24),
+        child: NewsCardSkeleton(),
       );
     }
     if (!hasMore) {

@@ -20,28 +20,12 @@ class NewsAudioPlayer extends HookWidget {
     final duration = useState(Duration.zero);
 
     useEffect(() {
-      Future<void> init() async {
-        try {
-          isLoading.value = true;
-          await player.setUrl(url);
-          duration.value = player.duration ?? Duration.zero;
-          isReady.value = true;
-        } catch (_) {
-          hasError.value = true;
-        } finally {
-          isLoading.value = false;
-        }
-      }
-
-      init();
-
       final posSub = player.positionStream.listen((p) => position.value = p);
       final durSub = player.durationStream.listen(
         (d) => duration.value = d ?? Duration.zero,
       );
       final stateSub = player.playerStateStream.listen((s) {
         isPlaying.value = s.playing;
-        // Auto-reset to start when finished
         if (s.processingState == ProcessingState.completed) {
           player.seek(Duration.zero);
           player.pause();
@@ -54,7 +38,29 @@ class NewsAudioPlayer extends HookWidget {
         stateSub.cancel();
         player.dispose();
       };
-    }, []);
+    }, [player]);
+
+    Future<void> togglePlayback() async {
+      if (isPlaying.value) {
+        await player.pause();
+        return;
+      }
+
+      if (!isReady.value) {
+        try {
+          isLoading.value = true;
+          await player.setUrl(url);
+          duration.value = player.duration ?? Duration.zero;
+          isReady.value = true;
+        } catch (_) {
+          hasError.value = true;
+        } finally {
+          isLoading.value = false;
+        }
+      }
+
+      if (isReady.value) await player.play();
+    }
 
     if (hasError.value) return const SizedBox.shrink();
 
@@ -139,13 +145,9 @@ class NewsAudioPlayer extends HookWidget {
               ),
               // Play / pause
               _PlayButton(
-                isLoading:
-                    isLoading.value || (!isReady.value && !hasError.value),
+                isLoading: isLoading.value,
                 isPlaying: isPlaying.value,
-                onTap: () {
-                  if (!isReady.value) return;
-                  isPlaying.value ? player.pause() : player.play();
-                },
+                onTap: togglePlayback,
               ),
               // Forward 10s
               IconButton(

@@ -54,7 +54,15 @@ class RiderRepository {
         );
         final paginated = PaginatedRiders.fromJson(response.data);
         riders.addAll(paginated.results);
+
+        if (paginated.results.isEmpty) {
+          break;
+        }
+
         hasMore = paginated.next != null;
+        if (!hasMore) {
+          break;
+        }
         page++;
       }
 

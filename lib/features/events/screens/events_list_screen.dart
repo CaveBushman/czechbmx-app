@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -8,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../models/event_model.dart';
 import '../providers/event_provider.dart';
 import '../widgets/event_card.dart';
+import '../widgets/events_shimmer.dart';
 
 class EventsListScreen extends ConsumerWidget {
   const EventsListScreen({super.key});
@@ -31,9 +33,7 @@ class EventsListScreen extends ConsumerWidget {
             ),
             eventsAsync.when(
               loading: () => const SliverFillRemaining(
-                child: Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                ),
+                child: EventsListShimmer(),
               ),
               error: (err, _) => SliverFillRemaining(
                 child: _ErrorView(
@@ -164,14 +164,48 @@ class _MonthSection extends StatelessWidget {
           ),
         ),
         ...events.map(
-          (e) => Padding(
-            key: e.id == targetEventId ? targetKey : null,
-            padding: const EdgeInsets.only(bottom: 8),
-            child: EventCard(
-              event: e,
-              onTap: () => context.go('/events/${e.id}'),
-            ),
-          ),
+          (e) {
+            final isNext = e.id == targetEventId;
+            final isPast = e.isPast && !e.canceled;
+            return Padding(
+              key: isNext ? targetKey : null,
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (isNext)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        children: [
+                          _PulsingDot(),
+                          SizedBox(width: 6),
+                          Text(
+                            'Příští závod',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Opacity(
+                    opacity: isPast ? 0.5 : 1.0,
+                    child: EventCard(
+                      event: e,
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        context.go('/events/${e.id}');
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ],
     );
@@ -304,6 +338,59 @@ class _EmptyView extends StatelessWidget {
             style: Theme.of(context).textTheme.headlineMedium,
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Pulsing dot indicator ─────────────────────────────────────────────────────
+
+class _PulsingDot extends StatefulWidget {
+  const _PulsingDot();
+
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.primary.withValues(alpha: 0.45 + 0.55 * _anim.value),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.4 * _anim.value),
+              blurRadius: 6,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
       ),
     );
   }

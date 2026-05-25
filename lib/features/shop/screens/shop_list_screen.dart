@@ -1,5 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../core/l10n/app_localizations.dart';
@@ -7,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../models/product_model.dart';
 import '../providers/cart_provider.dart';
 import '../providers/shop_provider.dart';
+import '../widgets/shop_shimmer.dart';
 
 class ShopListScreen extends ConsumerWidget {
   const ShopListScreen({super.key});
@@ -81,14 +84,13 @@ class ShopListScreen extends ConsumerWidget {
             ),
             productsAsync.when(
               loading: () => const SliverFillRemaining(
-                child: Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                ),
+                child: ShopGridShimmer(),
               ),
               error: (err, _) => SliverFillRemaining(
                 child: _ErrorView(
                   message: err.toString(),
-                  onRetry: () => ref.read(shopProductsProvider.notifier).refresh(),
+                  onRetry: () =>
+                      ref.read(shopProductsProvider.notifier).refresh(),
                 ),
               ),
               data: (products) {
@@ -96,7 +98,7 @@ class ShopListScreen extends ConsumerWidget {
                   return SliverFillRemaining(
                     child: Center(
                       child: Text(
-                        context.l10n.cartEmpty,
+                        context.l10n.noProducts,
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
                     ),
@@ -168,7 +170,8 @@ class _Chip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _Chip({required this.label, required this.selected, required this.onTap});
+  const _Chip(
+      {required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -197,7 +200,7 @@ class _Chip extends StatelessWidget {
   }
 }
 
-class _ProductCard extends ConsumerWidget {
+class _ProductCard extends HookConsumerWidget {
   final ProductModel product;
 
   const _ProductCard({required this.product});
@@ -205,20 +208,36 @@ class _ProductCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
+    final pressed = useState(false);
 
     return GestureDetector(
-      onTap: () => context.push('/shop/product/${product.slug}'),
-      child: Container(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        context.push('/shop/product/${product.slug}');
+      },
+      onTapDown: (_) => pressed.value = true,
+      onTapUp: (_) => pressed.value = false,
+      onTapCancel: () => pressed.value = false,
+      child: AnimatedScale(
+        scale: pressed.value ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: Container(
         decoration: BoxDecoration(
           color: colors.card,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: colors.brightness == Brightness.dark
+              ? Border.all(color: colors.border)
+              : null,
+          boxShadow: colors.brightness == Brightness.dark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -232,7 +251,8 @@ class _ProductCard extends ConsumerWidget {
                         imageUrl: product.imageAbsoluteUrl!,
                         fit: BoxFit.cover,
                         width: double.infinity,
-                        placeholder: (_, __) => Container(color: colors.surfaceVariant),
+                        placeholder: (_, __) =>
+                            Container(color: colors.surfaceVariant),
                         errorWidget: (_, __, ___) => _placeholder(colors),
                       )
                     : _placeholder(colors),
@@ -257,45 +277,35 @@ class _ProductCard extends ConsumerWidget {
                       product.subtitle!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 11, color: colors.textMuted),
+                      style: TextStyle(fontSize: 12, color: colors.textSecondary),
                     ),
                   const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          product.priceLabel,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                      if (!product.inStock)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: colors.surfaceVariant,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            context.l10n.outOfStock,
-                            style: TextStyle(
-                                fontSize: 9,
-                                color: colors.textMuted,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                    ],
+                  Text(
+                    product.priceLabel,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
                   ),
+                  if (!product.inStock) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      context.l10n.outOfStock,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textMuted,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
           ],
         ),
       ),
+      ),  // AnimatedScale
     );
   }
 

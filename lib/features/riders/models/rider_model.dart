@@ -82,35 +82,81 @@ class RiderModel {
 
   factory RiderModel.fromJson(Map<String, dynamic> json) {
     return RiderModel(
-      uciId: json['uci_id'] as int,
-      firstName: json['first_name'] as String? ?? '',
-      middleName: json['middle_name'] as String?,
-      lastName: json['last_name'] as String? ?? '',
-      nationality: json['nationality'] as String? ?? 'CZE',
-      dateOfBirth: json['date_of_birth'] as String?,
-      gender: json['gender'] as String? ?? '',
-      photo: json['photo'] as String?,
-      teamId: (json['team'] is int ? json['team'] : json['club']) as int?,
-      teamName: json['team_name'] as String? ??
-          json['club_name'] as String? ??
-          (json['team'] is Map ? (json['team'] as Map)['name'] as String? : null) ??
-          (json['club'] is Map ? (json['club'] as Map)['name'] as String? : null),
-      is20: json['is_20'] as bool? ?? false,
-      is24: json['is_24'] as bool? ?? false,
-      isElite: json['is_elite'] as bool? ?? false,
-      isActive: json['is_active'] as bool? ?? true,
-      class20: json['class_20'] as String?,
-      class24: json['class_24'] as String?,
-      city: json['city'] as String?,
+      uciId: _idFromJson(json['uci_id']) ?? 0,
+      firstName: _stringFromJson(json['first_name']) ?? '',
+      middleName: _stringFromJson(json['middle_name']),
+      lastName: _stringFromJson(json['last_name']) ?? '',
+      nationality: _stringFromJson(json['nationality']) ?? 'CZE',
+      dateOfBirth: _stringFromJson(json['date_of_birth']),
+      gender: _stringFromJson(json['gender']) ?? '',
+      photo: _stringFromJson(json['photo']),
+      teamId: _idFromJson(json['team']) ?? _idFromJson(json['club']),
+      teamName: _nameFromJson(json['team_name']) ??
+          _nameFromJson(json['club_name']) ??
+          _nameFromJson(json['team']) ??
+          _nameFromJson(json['club']),
+      is20: _boolFromJson(json['is_20']),
+      is24: _boolFromJson(json['is_24']),
+      isElite: _boolFromJson(json['is_elite']),
+      isActive: _boolFromJson(json['is_active'], defaultValue: true),
+      class20: _stringFromJson(json['class_20']),
+      class24: _stringFromJson(json['class_24']),
+      city: _stringFromJson(json['city']),
       plateNumber: (json['plate_text'] ?? json['plate_number'] ?? json['plate'])
           ?.toString(),
       transponder20: json['transponder_20']?.toString(),
       transponder24: json['transponder_24']?.toString(),
-      points20: json['points_20'] as int? ?? 0,
-      points24: json['points_24'] as int? ?? 0,
+      points20: _intFromJson(json['points_20']),
+      points24: _intFromJson(json['points_24']),
       ranking20: json['ranking_20']?.toString(),
       ranking24: json['ranking_24']?.toString(),
     );
+  }
+
+  static bool _boolFromJson(dynamic value, {bool defaultValue = false}) {
+    if (value is bool) return value;
+    if (value is String) {
+      final normalized = value.toLowerCase().trim();
+      return normalized == 'true' || normalized == '1' || normalized == 'yes';
+    }
+    if (value is num) return value != 0;
+    return defaultValue;
+  }
+
+  static int _intFromJson(dynamic value) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value) ?? 0;
+    if (value is num) return value.toInt();
+    return 0;
+  }
+
+  static String? _stringFromJson(dynamic value) {
+    if (value is String && value.trim().isNotEmpty) return value.trim();
+    if (value is num) return value.toString();
+    return null;
+  }
+
+  static int? _idFromJson(dynamic value) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    if (value is Map) return _idFromJson(value['id']);
+    return null;
+  }
+
+  static String? _nameFromJson(dynamic value) {
+    if (value is String && value.trim().isNotEmpty) return value.trim();
+    if (value is Map) {
+      for (final key in const [
+        'team_name',
+        'club_name',
+        'name',
+        'short_name'
+      ]) {
+        final name = _nameFromJson(value[key]);
+        if (name != null) return name;
+      }
+    }
+    return null;
   }
 }
 
@@ -132,10 +178,14 @@ class PaginatedRiders {
           .toList();
       return PaginatedRiders(count: items.length, results: items);
     }
+
     final map = json as Map<String, dynamic>;
-    final results = (map['results'] as List<dynamic>)
+    final resultsJson = map['results'] ?? map['data'];
+    final resultsList = resultsJson is List ? resultsJson : <dynamic>[];
+    final results = resultsList
         .map((e) => RiderModel.fromJson(e as Map<String, dynamic>))
         .toList();
+
     return PaginatedRiders(
       count: map['count'] as int? ?? results.length,
       next: map['next'] as String?,

@@ -43,8 +43,14 @@ class AuthInterceptor extends Interceptor {
         ApiConstants.authRefresh,
         data: {'refresh': refreshToken},
       );
-      final newAccess = response.data['access'] as String;
-      final newRefresh = response.data['refresh'] as String?;
+      final data = response.data;
+      final newAccess = data is Map ? data['access'] as String? : null;
+      final newRefresh = data is Map ? data['refresh'] as String? : null;
+      if (newAccess == null || newAccess.isEmpty) {
+        await TokenStorage.clear();
+        handler.next(err);
+        return;
+      }
 
       await TokenStorage.saveAccess(newAccess);
       if (newRefresh != null) {
@@ -56,7 +62,7 @@ class AuthInterceptor extends Interceptor {
         ..headers['Authorization'] = 'Bearer $newAccess';
       final retryResponse = await _refreshDio.fetch(opts);
       handler.resolve(retryResponse);
-    } on DioException catch (_) {
+    } catch (_) {
       await TokenStorage.clear();
       handler.next(err);
     }

@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/splash_screen.dart';
 import '../models/rider_model.dart';
+import '../providers/favorite_riders_provider.dart';
 import '../providers/rider_provider.dart';
 
 
@@ -17,11 +19,7 @@ class RiderDetailScreen extends ConsumerWidget {
     final riderAsync = ref.watch(riderDetailProvider(uciId));
 
     return riderAsync.when(
-      loading: () => const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
-      ),
+      loading: () => const SplashScreen(),
       error: (err, _) => Scaffold(
         appBar: AppBar(),
         body: Center(
@@ -54,6 +52,9 @@ class _RiderDetailBody extends ConsumerWidget {
     final class24 = rider.is24
         ? (rider.class24?.isNotEmpty == true ? rider.class24! : '-')
         : context.l10n.doesNotRide;
+    final isFavorite = ref.watch(
+      favoriteRidersProvider.select((s) => s.contains(rider.uciId)),
+    );
 
     return Scaffold(
       body: CustomScrollView(
@@ -66,6 +67,24 @@ class _RiderDetailBody extends ConsumerWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+            actions: [
+              IconButton(
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  transitionBuilder: (child, anim) =>
+                      ScaleTransition(scale: anim, child: child),
+                  child: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    key: ValueKey(isFavorite),
+                    color: isFavorite ? Colors.redAccent : null,
+                  ),
+                ),
+                onPressed: () => ref
+                    .read(favoriteRidersProvider.notifier)
+                    .toggle(rider.uciId),
+                tooltip: context.l10n.myRiders,
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,

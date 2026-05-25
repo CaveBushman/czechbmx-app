@@ -1,9 +1,14 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../theme/app_colors.dart';
 
-/// Otevře URL v in-app WebView. YouTube a jiné externí schémata se přesměrují
-/// na nativní aplikaci — viz [_isExternalUrl].
+bool get _webViewSupported =>
+    !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
 class InAppBrowserScreen extends StatefulWidget {
   final String url;
   final String? title;
@@ -28,6 +33,15 @@ class _InAppBrowserScreenState extends State<InAppBrowserScreen> {
         onProgress: (p) => setState(() => _loadingProgress = p),
         onPageFinished: (_) => setState(() => _loadingProgress = 100),
         onWebResourceError: (_) => setState(() => _loadingProgress = 100),
+        onNavigationRequest: (request) {
+          final uri = Uri.tryParse(request.url);
+          if (uri == null) return NavigationDecision.prevent;
+          if (uri.scheme == 'https' || uri.scheme == 'http') {
+            return NavigationDecision.navigate;
+          }
+          // Block non-web schemes (javascript:, file:, data:, etc.)
+          return NavigationDecision.prevent;
+        },
       ))
       ..loadRequest(Uri.parse(widget.url));
   }
@@ -65,10 +79,17 @@ class _InAppBrowserScreenState extends State<InAppBrowserScreen> {
   }
 }
 
-/// Otevři URL v in-app browseru. Vrátí Future, který se dokončí,
-/// jakmile uživatel browser zavře (přes back / swipe).
-Future<void> openInApp(BuildContext context, String url, {String? title}) {
-  return Navigator.of(context).push(
+/// Otevři URL v in-app browseru (Android/iOS).
+/// Na ostatních platformách otevře URL v externím prohlížeči.
+Future<void> openInApp(BuildContext context, String url, {String? title}) async {
+  if (!_webViewSupported) {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+    }
+    return;
+  }
+  await Navigator.of(context).push(
     PageRouteBuilder(
       pageBuilder: (ctx, a1, a2) =>
           InAppBrowserScreen(url: url, title: title),
