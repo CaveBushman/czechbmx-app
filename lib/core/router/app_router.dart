@@ -1,6 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
@@ -13,6 +16,7 @@ import '../../features/news/screens/news_list_screen.dart';
 import '../../features/rankings/screens/rankings_screen.dart';
 import '../../features/riders/screens/rider_detail_screen.dart';
 import '../../features/riders/screens/riders_list_screen.dart';
+import '../../features/profile/screens/credit_topup_screen.dart';
 import '../../features/shop/screens/cart_screen.dart';
 import '../../features/shop/screens/product_detail_screen.dart';
 import '../../features/shop/screens/shop_list_screen.dart';
@@ -42,7 +46,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
-      GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
+      GoRoute(
+          path: '/register',
+          builder: (context, state) => const RegisterScreen()),
       ShellRoute(
         builder: (context, state, child) => _MainShell(child: child),
         routes: [
@@ -118,6 +124,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/profile',
             builder: (context, state) => const _ProfileScreen(),
+            routes: [
+              GoRoute(
+                path: 'credit',
+                pageBuilder: (context, state) => _slideTransition(
+                  key: state.pageKey,
+                  child: const CreditTopUpScreen(),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -142,8 +157,8 @@ CustomTransitionPage<void> _slideTransition({
         end: Offset.zero,
       ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
 
-      final fade = Tween<double>(begin: 0.0, end: 1.0)
-          .animate(CurvedAnimation(parent: animation, curve: const Interval(0.0, 0.5)));
+      final fade = Tween<double>(begin: 0.0, end: 1.0).animate(
+          CurvedAnimation(parent: animation, curve: const Interval(0.0, 0.5)));
 
       return FadeTransition(
         opacity: fade,
@@ -160,7 +175,14 @@ class _MainShell extends StatelessWidget {
 
   const _MainShell({required this.child});
 
-  static const _tabs = ['/news', '/events', '/riders', '/rankings', '/shop', '/profile'];
+  static const _tabs = [
+    '/news',
+    '/events',
+    '/riders',
+    '/rankings',
+    '/shop',
+    '/profile'
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -216,12 +238,14 @@ class _MainShell extends StatelessWidget {
 
 // ── Profile screen ────────────────────────────────────────────────────────────
 
-class _ProfileScreen extends ConsumerWidget {
+class _ProfileScreen extends HookConsumerWidget {
   const _ProfileScreen();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final photoUploading = useState(false);
+    final photoRefreshToken = useState(0);
 
     if (user == null) {
       return Scaffold(
@@ -269,6 +293,65 @@ class _ProfileScreen extends ConsumerWidget {
       );
     }
 
+    Future<void> pickAndUploadPhoto() async {
+      final source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        builder: (_) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: Text(context.l10n.fromCamera),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: Text(context.l10n.fromGallery),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (source == null) return;
+
+      final file = await ImagePicker().pickImage(
+        source: source,
+        imageQuality: 80,
+        maxWidth: 800,
+      );
+      if (file == null || !context.mounted) return;
+
+      photoUploading.value = true;
+      try {
+        final oldPhotoUrl = user.photoUrl;
+        final updatedUser =
+            await ref.read(authProvider.notifier).updatePhoto(file.path);
+        final newPhotoUrl = updatedUser.photoUrl;
+        if (oldPhotoUrl != null) {
+          await CachedNetworkImage.evictFromCache(oldPhotoUrl);
+        }
+        if (newPhotoUrl != null && newPhotoUrl != oldPhotoUrl) {
+          await CachedNetworkImage.evictFromCache(newPhotoUrl);
+        }
+        photoRefreshToken.value++;
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.l10n.photoChanged)),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.toString())),
+          );
+        }
+      } finally {
+        photoUploading.value = false;
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(context.l10n.profile),
@@ -285,27 +368,98 @@ class _ProfileScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // Avatar circle
+          // Avatar with camera button
           Center(
-            child: Container(
-              width: 88,
-              height: 88,
-              decoration: const BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  user.firstName.isNotEmpty
-                      ? user.firstName[0].toUpperCase()
-                      : '?',
-                  style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
+            child: Stack(
+              children: [
+                Container(
+                  width: 88,
+                  height: 88,
+                  decoration: BoxDecoration(
+                    gradient: user.photoUrl == null
+                        ? AppColors.primaryGradient
+                        : null,
+                    shape: BoxShape.circle,
+                    color: user.photoUrl != null
+                        ? context.colors.surfaceVariant
+                        : null,
+                  ),
+                  child: ClipOval(
+                    child: user.photoUrl != null
+                        ? CachedNetworkImage(
+                            key: ValueKey(
+                              '${user.photoUrl}-${photoRefreshToken.value}',
+                            ),
+                            imageUrl: user.photoUrl!,
+                            width: 88,
+                            height: 88,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) => const Center(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            errorWidget: (_, __, ___) => Center(
+                              child: Text(
+                                user.firstName.isNotEmpty
+                                    ? user.firstName[0].toUpperCase()
+                                    : '?',
+                                style: const TextStyle(
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              user.firstName.isNotEmpty
+                                  ? user.firstName[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                fontSize: 36,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                   ),
                 ),
-              ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: GestureDetector(
+                    onTap: photoUploading.value ? null : pickAndUploadPhoto,
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: context.colors.surface,
+                          width: 2,
+                        ),
+                      ),
+                      child: photoUploading.value
+                          ? const Padding(
+                              padding: EdgeInsets.all(5),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.camera_alt,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -329,12 +483,13 @@ class _ProfileScreen extends ConsumerWidget {
             label: context.l10n.email,
             value: user.email,
           ),
-          if (user.credit > 0)
-            _InfoTile(
-              icon: Icons.stars_outlined,
-              label: 'Kredit',
-              value: '${user.credit} Kč',
-            ),
+          _CreditTile(credit: user.credit),
+
+          // Linked rider profile
+          if (user.isRider && user.riderUciId != null) ...[
+            const SizedBox(height: 4),
+            _LinkedRiderTile(uciId: user.riderUciId!),
+          ],
 
           // Role badges
           const SizedBox(height: 20),
@@ -420,9 +575,7 @@ class _MyEntriesSection extends ConsumerWidget {
               );
             }
             return Column(
-              children: entries
-                  .map((e) => _EntryCard(entry: e))
-                  .toList(),
+              children: entries.map((e) => _EntryCard(entry: e)).toList(),
             );
           },
         ),
@@ -516,8 +669,19 @@ class _EntryCard extends ConsumerWidget {
                     ],
                   ),
                 );
-                if (confirm == true) {
-                  await ref.read(myEntriesProvider.notifier).cancel(entry.id);
+                if (confirm == true && context.mounted) {
+                  final newBalance = await ref
+                      .read(myEntriesProvider.notifier)
+                      .cancel(entry.id);
+                  if (context.mounted && newBalance != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '${context.l10n.creditRefunded}: $newBalance Kč',
+                        ),
+                      ),
+                    );
+                  }
                 }
               },
               style: TextButton.styleFrom(
@@ -572,6 +736,114 @@ class _InfoTile extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CreditTile extends StatelessWidget {
+  final int credit;
+
+  const _CreditTile({required this.credit});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: context.colors.card,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.stars_outlined,
+                color: context.colors.textMuted, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(context.l10n.credit,
+                      style: Theme.of(context).textTheme.bodySmall),
+                  Text(
+                    '$credit Kč',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ],
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => context.go('/profile/credit'),
+              icon: const Icon(Icons.add, size: 16),
+              label: Text(context.l10n.topUpCredit),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LinkedRiderTile extends StatelessWidget {
+  final int uciId;
+  const _LinkedRiderTile({required this.uciId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: GestureDetector(
+        onTap: () => context.go('/riders/$uciId'),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: context.colors.card,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.directions_bike_outlined,
+                color: AppColors.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.l10n.myRiderProfile,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    Text(
+                      'UCI ID: $uciId',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall!
+                          .copyWith(color: AppColors.primary),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: context.colors.textMuted,
+                size: 18,
+              ),
+            ],
+          ),
         ),
       ),
     );

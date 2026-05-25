@@ -1,4 +1,5 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../entries_repository.dart';
 import '../models/entry_model.dart';
 
@@ -19,9 +20,11 @@ class MyEntriesNotifier extends AsyncNotifier<List<EntryModel>> {
     );
   }
 
-  Future<void> cancel(int entryId) async {
-    await ref.read(entriesRepositoryProvider).cancelEntry(entryId);
+  Future<int?> cancel(int entryId) async {
+    final newBalance = await ref.read(entriesRepositoryProvider).cancelEntry(entryId);
     final current = state.valueOrNull ?? [];
     state = AsyncData(current.where((e) => e.id != entryId).toList());
+    ref.read(authProvider.notifier).refreshUser();
+    return newBalance;
   }
 }

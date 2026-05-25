@@ -9,7 +9,8 @@ class RiderModel {
   final String? dateOfBirth;
   final String gender;
   final String? photo;
-  final int? clubId;
+  final int? teamId;
+  final String? teamName;
   final bool is20;
   final bool is24;
   final bool isElite;
@@ -34,7 +35,8 @@ class RiderModel {
     this.dateOfBirth,
     required this.gender,
     this.photo,
-    this.clubId,
+    this.teamId,
+    this.teamName,
     required this.is20,
     required this.is24,
     required this.isElite,
@@ -88,7 +90,11 @@ class RiderModel {
       dateOfBirth: json['date_of_birth'] as String?,
       gender: json['gender'] as String? ?? '',
       photo: json['photo'] as String?,
-      clubId: json['club'] as int?,
+      teamId: (json['team'] is int ? json['team'] : json['club']) as int?,
+      teamName: json['team_name'] as String? ??
+          json['club_name'] as String? ??
+          (json['team'] is Map ? (json['team'] as Map)['name'] as String? : null) ??
+          (json['club'] is Map ? (json['club'] as Map)['name'] as String? : null),
       is20: json['is_20'] as bool? ?? false,
       is24: json['is_24'] as bool? ?? false,
       isElite: json['is_elite'] as bool? ?? false,

@@ -18,6 +18,7 @@ class UserModel {
   final bool isTrainer;
   final int credit;
   final String? photoUrl;
+  final int? riderUciId;
 
   const UserModel({
     required this.id,
@@ -31,6 +32,7 @@ class UserModel {
     required this.isTrainer,
     required this.credit,
     this.photoUrl,
+    this.riderUciId,
   });
 
   String get fullName => '$firstName $lastName'.trim();
@@ -49,8 +51,14 @@ class UserModel {
         isCommissar: json['is_commissar'] as bool? ?? false,
         isTrainer: json['is_trainer'] as bool? ?? false,
         credit: json['credit'] as int? ?? 0,
-        photoUrl: json['photo_url'] as String?,
+        photoUrl: _mediaUrl(json['photo_url']),
+        riderUciId: json['rider_uci_id'] as int? ?? json['uci_id'] as int?,
       );
+
+  static String? _mediaUrl(dynamic value) {
+    if (value is! String || value.trim().isEmpty) return null;
+    return ApiConstants.mediaPath(value.trim());
+  }
 }
 
 // ── Provider ──────────────────────────────────────────────────────────────────
@@ -138,6 +146,32 @@ class AuthRepository {
     } catch (_) {
       await TokenStorage.clear();
       return null;
+    }
+  }
+
+  Future<UserModel> fetchMe() async {
+    try {
+      final authedDio = DioClient.create();
+      final response = await authedDio.get(ApiConstants.authMe);
+      return UserModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<UserModel> updatePhoto(String filePath) async {
+    try {
+      final authedDio = DioClient.create();
+      final formData = FormData.fromMap({
+        'photo': await MultipartFile.fromFile(filePath, filename: 'photo.jpg'),
+      });
+      final response = await authedDio.patch(
+        ApiConstants.authMe,
+        data: formData,
+      );
+      return UserModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
     }
   }
 }

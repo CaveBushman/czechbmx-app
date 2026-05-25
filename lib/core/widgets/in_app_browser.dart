@@ -65,10 +65,10 @@ class _InAppBrowserScreenState extends State<InAppBrowserScreen> {
   }
 }
 
-/// Otevři URL v in-app browseru.
-/// YouTube/app-only schémata otevři nativně přes url_launcher.
-void openInApp(BuildContext context, String url, {String? title}) {
-  Navigator.of(context).push(
+/// Otevři URL v in-app browseru. Vrátí Future, který se dokončí,
+/// jakmile uživatel browser zavře (přes back / swipe).
+Future<void> openInApp(BuildContext context, String url, {String? title}) {
+  return Navigator.of(context).push(
     PageRouteBuilder(
       pageBuilder: (ctx, a1, a2) =>
           InAppBrowserScreen(url: url, title: title),

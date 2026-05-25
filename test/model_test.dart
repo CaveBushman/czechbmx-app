@@ -63,6 +63,9 @@ void main() {
         'type_for_ranking': 'Evropský pohár',
         'is_uci_race': true,
         'reg_open': false,
+        'organizer_name': 'BMX Klub Praha',
+        'organizer_lat': 50.123,
+        'organizer_lon': 14.456,
         'proposition': '/media/events/propozice.pdf',
         'canceled': false,
       });
@@ -73,6 +76,10 @@ void main() {
         event.propositionUrl,
         'https://czechbmx.cz/media/events/propozice.pdf',
       );
+      expect(event.organizerName, 'BMX Klub Praha');
+      expect(event.organizerLat, 50.123);
+      expect(event.organizerLon, 14.456);
+      expect(event.hasTrackCoordinates, isTrue);
     });
   });
 

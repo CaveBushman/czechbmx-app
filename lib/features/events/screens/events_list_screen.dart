@@ -66,23 +66,25 @@ class _EventsCalendar extends HookConsumerWidget {
     final months = byMonth.keys.toList()..sort();
     final selectedYear = ref.watch(selectedYearProvider);
 
-    // Find the month index of the nearest upcoming event (only for current year)
-    final targetMonth = useMemoized(() {
+    // Find the exact first upcoming event (only for current year)
+    final targetInfo = useMemoized(() {
       if (selectedYear != DateTime.now().year) return null;
       final now = DateTime.now();
       for (final month in months) {
-        final hasUpcoming = byMonth[month]!
-            .any((e) => e.date != null && !e.date!.isBefore(now));
-        if (hasUpcoming) return month;
+        for (final event in byMonth[month]!) {
+          if (event.date != null && !event.date!.isBefore(now)) {
+            return (month: month, eventId: event.id);
+          }
+        }
       }
       return null;
     }, [months, selectedYear]);
 
-    final targetKey = useMemoized(() => GlobalKey(), [targetMonth]);
+    final targetKey = useMemoized(() => GlobalKey(), [targetInfo]);
 
-    // Scroll to nearest upcoming month after first render
+    // Scroll to the exact upcoming event after first render
     useEffect(() {
-      if (targetMonth == null) return null;
+      if (targetInfo == null) return null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final ctx = targetKey.currentContext;
         if (ctx != null) {
@@ -95,7 +97,7 @@ class _EventsCalendar extends HookConsumerWidget {
         }
       });
       return null;
-    }, [targetMonth]);
+    }, [targetInfo]);
 
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -103,9 +105,10 @@ class _EventsCalendar extends HookConsumerWidget {
         child: Column(
           children: months.map((month) {
             return _MonthSection(
-              key: month == targetMonth ? targetKey : null,
               month: month,
               events: byMonth[month]!,
+              targetEventId: month == targetInfo?.month ? targetInfo?.eventId : null,
+              targetKey: month == targetInfo?.month ? targetKey : null,
             );
           }).toList(),
         ),
@@ -117,8 +120,15 @@ class _EventsCalendar extends HookConsumerWidget {
 class _MonthSection extends StatelessWidget {
   final int month;
   final List<EventModel> events;
+  final int? targetEventId;
+  final Key? targetKey;
 
-  const _MonthSection({super.key, required this.month, required this.events});
+  const _MonthSection({
+    required this.month,
+    required this.events,
+    this.targetEventId,
+    this.targetKey,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -155,6 +165,7 @@ class _MonthSection extends StatelessWidget {
         ),
         ...events.map(
           (e) => Padding(
+            key: e.id == targetEventId ? targetKey : null,
             padding: const EdgeInsets.only(bottom: 8),
             child: EventCard(
               event: e,

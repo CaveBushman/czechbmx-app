@@ -16,13 +16,29 @@ class NewsPage {
 
 class NewsRepository {
   final Dio _dio;
-  const NewsRepository(this._dio);
+  final Map<String, NewsPage> _pageCache = {};
 
-  Future<NewsPage> fetchNews({int page = 1}) async {
+  NewsRepository(this._dio);
+
+  Future<NewsPage> fetchNews({
+    int page = 1,
+    String? search,
+    bool forceRefresh = false,
+  }) async {
     try {
+      final cacheKey = '${search ?? ''}::$page';
+      if (!forceRefresh && _pageCache.containsKey(cacheKey)) {
+        return _pageCache[cacheKey]!;
+      }
+
+      final params = <String, dynamic>{
+        'page': page,
+        'ordering': '-publish_date'
+      };
+      if (search != null && search.isNotEmpty) params['search'] = search;
       final response = await _dio.get(
         ApiConstants.news,
-        queryParameters: {'page': page, 'ordering': '-publish_date'},
+        queryParameters: params,
       );
       final paginated = PaginatedNews.fromJson(response.data);
       final items = paginated.results.where((n) => n.published).toList()
@@ -34,7 +50,9 @@ class NewsRepository {
           if (db == null) return -1;
           return db.compareTo(da);
         });
-      return NewsPage(items: items, hasMore: paginated.next != null);
+      final result = NewsPage(items: items, hasMore: paginated.next != null);
+      _pageCache[cacheKey] = result;
+      return result;
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }

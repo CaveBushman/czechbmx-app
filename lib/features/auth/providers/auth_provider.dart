@@ -76,4 +76,19 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
           password: password,
         );
   }
+
+  Future<void> refreshUser() async {
+    try {
+      final user = await ref.read(authRepositoryProvider).fetchMe();
+      state = AsyncData(AuthAuthenticated(user));
+    } catch (_) {
+      // Keep current state if refresh fails
+    }
+  }
+
+  Future<UserModel> updatePhoto(String filePath) async {
+    final user = await ref.read(authRepositoryProvider).updatePhoto(filePath);
+    state = AsyncData(AuthAuthenticated(user));
+    return user;
+  }
 }

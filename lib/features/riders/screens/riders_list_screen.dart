@@ -258,15 +258,21 @@ class _Chip extends StatelessWidget {
 
 // ── Rider tile ────────────────────────────────────────────────────────────────
 
-class _RiderTile extends HookWidget {
+class _RiderTile extends HookConsumerWidget {
   final RiderModel rider;
 
   const _RiderTile({required this.rider});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
     final pressed = useState(false);
+    final teamsMap = ref.watch(teamsMapProvider).valueOrNull ?? {};
+
+    final teamLabel = rider.teamName?.isNotEmpty == true
+        ? rider.teamName!
+        : (rider.teamId != null ? teamsMap[rider.teamId] : null) ?? '';
+
     return GestureDetector(
       onTap: () => context.go('/riders/${rider.uciId}'),
       onTapDown: (_) => pressed.value = true,
@@ -313,8 +319,7 @@ class _RiderTile extends HookWidget {
                   Text(
                     [
                       if (rider.categoryLabel.isNotEmpty) rider.categoryLabel,
-                      if (rider.city != null && rider.city!.isNotEmpty)
-                        rider.city,
+                      if (teamLabel.isNotEmpty) teamLabel,
                     ].join(' · '),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),

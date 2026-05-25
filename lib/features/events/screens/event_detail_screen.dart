@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -6,6 +7,9 @@ import '../../../core/widgets/in_app_browser.dart';
 
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../entries/entries_repository.dart';
+import '../../entries/providers/entries_provider.dart';
 import '../models/event_model.dart';
 import '../providers/event_provider.dart';
 
@@ -363,7 +367,7 @@ class _ActionGrid extends StatelessWidget {
         _EventAction(
           icon: Icons.app_registration,
           label: context.l10n.register,
-          url: event.webRegistrationUrl,
+          onTap: () => _openNativeEntrySheet(context, event),
           primary: true,
         ),
       if (event.uecLink != null)
@@ -372,6 +376,12 @@ class _ActionGrid extends StatelessWidget {
           label: context.l10n.register,
           url: event.uecLink!,
           primary: true,
+        ),
+      if (event.hasTrackCoordinates)
+        _EventAction(
+          icon: Icons.navigation_outlined,
+          label: context.l10n.navigateToTrack,
+          onTap: () => _openNavigation(event),
         ),
       _EventAction(
         icon: Icons.groups_outlined,
@@ -414,13 +424,15 @@ class _ActionGrid extends StatelessWidget {
 class _EventAction extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String url;
+  final String? url;
+  final VoidCallback? onTap;
   final bool primary;
 
   const _EventAction({
     required this.icon,
     required this.label,
-    required this.url,
+    this.url,
+    this.onTap,
     this.primary = false,
   });
 
@@ -428,7 +440,7 @@ class _EventAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return FilledButton.icon(
-      onPressed: () => _openUrl(url, context: context, title: label),
+      onPressed: onTap ?? () => _openUrl(url!, context: context, title: label),
       icon: Icon(icon, size: 18),
       label: Text(label, overflow: TextOverflow.ellipsis),
       style: FilledButton.styleFrom(
@@ -439,6 +451,304 @@ class _EventAction extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _openNativeEntrySheet(
+  BuildContext context,
+  EventModel event,
+) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (_) => _EventEntrySheet(event: event),
+  );
+}
+
+class _EventEntrySheet extends ConsumerStatefulWidget {
+  final EventModel event;
+
+  const _EventEntrySheet({required this.event});
+
+  @override
+  ConsumerState<_EventEntrySheet> createState() => _EventEntrySheetState();
+}
+
+class _EventEntrySheetState extends ConsumerState<_EventEntrySheet> {
+  Future<EventEntryInfo>? _future;
+  final Set<String> _selected = {};
+  bool _initializedSelection = false;
+  bool _submitting = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final user = ref.read(currentUserProvider);
+    final riderUciId = user?.riderUciId;
+    if (_future == null && riderUciId != null) {
+      _future = ref.read(entriesRepositoryProvider).fetchEventEntryInfo(
+            eventId: widget.event.id,
+            riderUciId: riderUciId,
+          );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
+    final riderUciId = user?.riderUciId;
+    final colors = context.colors;
+
+    if (user == null) {
+      return _EntrySheetScaffold(
+        title: context.l10n.register,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(context.l10n.notLoggedIn),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                context.go('/login');
+              },
+              icon: const Icon(Icons.login),
+              label: Text(context.l10n.login),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (riderUciId == null) {
+      return const _EntrySheetScaffold(
+        title: 'Přihlášení na závod',
+        child: Text('K účtu není navázaný žádný jezdec.'),
+      );
+    }
+
+    return FutureBuilder<EventEntryInfo>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const _EntrySheetScaffold(
+            title: 'Přihlášení na závod',
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            ),
+          );
+        }
+        if (snapshot.hasError) {
+          return _EntrySheetScaffold(
+            title: 'Přihlášení na závod',
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(snapshot.error.toString(), textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _future = ref
+                          .read(entriesRepositoryProvider)
+                          .fetchEventEntryInfo(
+                            eventId: widget.event.id,
+                            riderUciId: riderUciId,
+                          );
+                    });
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: Text(context.l10n.retry),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final info = snapshot.data!;
+        final selectable = info.selectableOptions.toList();
+        if (!_initializedSelection) {
+          if (selectable.isNotEmpty) _selected.add(selectable.first.key);
+          _initializedSelection = true;
+        }
+
+        if (!info.registrationOpen || selectable.isEmpty) {
+          return _EntrySheetScaffold(
+            title: 'Přihlášení na závod',
+            child: Text(
+              selectable.isEmpty
+                  ? 'Pro jezdce není dostupná žádná nová kategorie.'
+                  : context.l10n.registrationClosed,
+              textAlign: TextAlign.center,
+            ),
+          );
+        }
+
+        final totalFee = info.feeFor(_selected);
+        return _EntrySheetScaffold(
+          title: info.eventName,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Jezdec UCI ID: ${info.riderUciId}',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium!
+                    .copyWith(color: colors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              ...info.options.entries.map((entry) {
+                final option = entry.value;
+                final enabled = option.allowed && !option.alreadyRegistered;
+                return CheckboxListTile(
+                  value: _selected.contains(entry.key),
+                  onChanged: enabled
+                      ? (value) {
+                          setState(() {
+                            if (value == true) {
+                              if (entry.key == 'is_beginner') {
+                                _selected
+                                  ..clear()
+                                  ..add(entry.key);
+                              } else {
+                                _selected
+                                  ..remove('is_beginner')
+                                  ..add(entry.key);
+                              }
+                            } else {
+                              _selected.remove(entry.key);
+                            }
+                          });
+                        }
+                      : null,
+                  title: Text(_entryOptionLabel(entry.key, option)),
+                  subtitle: Text(
+                    option.alreadyRegistered
+                        ? 'Už přihlášeno'
+                        : option.allowed
+                            ? '${option.fee} Kč'
+                            : 'Není dostupné',
+                  ),
+                  contentPadding: EdgeInsets.zero,
+                );
+              }),
+              const SizedBox(height: 12),
+              Text(
+                'Celkem: $totalFee Kč',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: _selected.isEmpty || _submitting
+                    ? null
+                    : () => _submit(info),
+                icon: _submitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.check),
+                label: Text(context.l10n.register),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _submit(EventEntryInfo info) async {
+    setState(() => _submitting = true);
+    try {
+      await ref.read(entriesRepositoryProvider).enterEvent(
+            eventId: widget.event.id,
+            riderUciId: info.riderUciId,
+            is20: _selected.contains('is_20'),
+            is24: _selected.contains('is_24'),
+            isBeginner: _selected.contains('is_beginner'),
+          );
+      ref.invalidate(myEntriesProvider);
+      ref.read(authProvider.notifier).refreshUser();
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Přihlášení proběhlo.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+}
+
+class _EntrySheetScaffold extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _EntrySheetScaffold({
+    required this.title,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        16,
+        20,
+        MediaQuery.viewInsetsOf(context).bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+String _entryOptionLabel(String key, EventEntryOption option) {
+  final className = option.className;
+  final suffix = className == null || className.isEmpty ? '' : ' - $className';
+  return switch (key) {
+    'is_20' => '20"$suffix',
+    'is_24' => '24"$suffix',
+    'is_beginner' => 'Začátečník$suffix',
+    _ => key,
+  };
 }
 
 class _Section extends StatelessWidget {
@@ -667,7 +977,8 @@ bool _isYouTube(String url) {
   return host.contains('youtube.com') || host.contains('youtu.be');
 }
 
-Future<void> _openUrl(String url, {BuildContext? context, String? title}) async {
+Future<void> _openUrl(String url,
+    {BuildContext? context, String? title}) async {
   if (context != null && context.mounted && !_isYouTube(url)) {
     openInApp(context, url, title: title);
     return;
@@ -675,6 +986,28 @@ Future<void> _openUrl(String url, {BuildContext? context, String? title}) async 
   final uri = Uri.parse(url);
   if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
     await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+  }
+}
+
+Future<void> _openNavigation(EventModel event) async {
+  final lat = event.organizerLat;
+  final lon = event.organizerLon;
+  if (lat == null || lon == null) return;
+
+  final label = Uri.encodeComponent(event.organizerName ?? event.name);
+  final candidates = [
+    Uri.parse('google.navigation:q=$lat,$lon'),
+    Uri.parse('geo:$lat,$lon?q=$lat,$lon($label)'),
+    Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lon&travelmode=driving',
+    ),
+  ];
+
+  for (final uri in candidates) {
+    if (await canLaunchUrl(uri) &&
+        await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      return;
+    }
   }
 }
 

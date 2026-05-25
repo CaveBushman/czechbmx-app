@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../models/rider_model.dart';
 import '../providers/rider_provider.dart';
 
+
 class RiderDetailScreen extends ConsumerWidget {
   final int uciId;
 
@@ -35,14 +36,18 @@ class RiderDetailScreen extends ConsumerWidget {
   }
 }
 
-class _RiderDetailBody extends StatelessWidget {
+class _RiderDetailBody extends ConsumerWidget {
   final RiderModel rider;
 
   const _RiderDetailBody({required this.rider});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
+    final teamsMap = ref.watch(teamsMapProvider).valueOrNull ?? {};
+    final teamName = rider.teamName?.isNotEmpty == true
+        ? rider.teamName!
+        : (rider.teamId != null ? teamsMap[rider.teamId] : null);
     final class20 = rider.is20
         ? (rider.class20?.isNotEmpty == true ? rider.class20! : '-')
         : context.l10n.doesNotRide;
@@ -131,6 +136,12 @@ class _RiderDetailBody extends StatelessWidget {
                   const SizedBox(height: 24),
 
                   // Info tiles
+                  if (teamName != null && teamName.isNotEmpty)
+                    _InfoTile(
+                      icon: Icons.groups_outlined,
+                      label: context.l10n.clubAffiliation,
+                      value: teamName,
+                    ),
                   if (rider.plateNumber != null &&
                       rider.plateNumber!.isNotEmpty)
                     _InfoTile(

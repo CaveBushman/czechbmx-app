@@ -55,7 +55,7 @@ class _LogInterceptor extends Interceptor {
     assert(() {
       // ignore: avoid_print
       print(
-        '[HTTP ${response.statusCode}] ${response.requestOptions.uri} → ${response.data}',
+        '[HTTP ${response.statusCode}] ${response.requestOptions.uri} → ${_shortLog(response.data)}',
       );
       return true;
     }());
@@ -67,12 +67,18 @@ class _LogInterceptor extends Interceptor {
     assert(() {
       // ignore: avoid_print
       print(
-        '[HTTP ERR] ${err.response?.statusCode} ${err.requestOptions.uri} ${err.response?.data} ${err.message}',
+        '[HTTP ERR] ${err.response?.statusCode} ${err.requestOptions.uri} ${_shortLog(err.response?.data)} ${err.message}',
       );
       return true;
     }());
     handler.next(err);
   }
+}
+
+String _shortLog(Object? value) {
+  final text = value.toString();
+  if (text.length <= 500) return text;
+  return '${text.substring(0, 500)}... (${text.length} chars)';
 }
 
 class ApiException implements Exception {
@@ -89,10 +95,26 @@ class ApiException implements Exception {
       DioExceptionType.receiveTimeout =>
         'Časový limit připojení vypršel.',
       DioExceptionType.connectionError => 'Nelze se připojit k serveru.',
-      _ => e.response?.data?['detail'] as String? ??
-          'Neznámá chyba (${code ?? 'N/A'}).',
+      _ => _messageFromResponse(e.response?.data, code),
     };
     return ApiException(msg, statusCode: code);
+  }
+
+  static String _messageFromResponse(dynamic data, int? code) {
+    if (data is String && data.isNotEmpty) return data;
+    if (data is Map) {
+      for (final key in const ['detail', 'error', 'message']) {
+        final value = data[key];
+        if (value is String && value.isNotEmpty) return value;
+      }
+      for (final value in data.values) {
+        if (value is List && value.isNotEmpty) {
+          return value.first.toString();
+        }
+        if (value is String && value.isNotEmpty) return value;
+      }
+    }
+    return 'Neznámá chyba (${code ?? 'N/A'}).';
   }
 
   @override

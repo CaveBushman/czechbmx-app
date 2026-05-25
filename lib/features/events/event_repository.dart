@@ -10,12 +10,20 @@ final eventRepositoryProvider = Provider<EventRepository>(
 
 class EventRepository {
   final Dio _dio;
+  final Map<int, List<EventModel>> _eventsByYearCache = {};
 
-  const EventRepository(this._dio);
+  EventRepository(this._dio);
 
-  Future<List<EventModel>> fetchEvents({int? year}) async {
+  Future<List<EventModel>> fetchEvents({
+    int? year,
+    bool forceRefresh = false,
+  }) async {
     try {
       final targetYear = year ?? DateTime.now().year;
+      if (!forceRefresh && _eventsByYearCache.containsKey(targetYear)) {
+        return _eventsByYearCache[targetYear]!;
+      }
+
       final events = <EventModel>[];
       var page = 1;
       var hasMore = true;
@@ -23,7 +31,11 @@ class EventRepository {
       while (hasMore) {
         final response = await _dio.get(
           ApiConstants.events,
-          queryParameters: {'ordering': 'date', 'page': page},
+          queryParameters: {
+            'year': targetYear,
+            'ordering': 'date',
+            'page': page,
+          },
         );
         final paginated = PaginatedEvents.fromJson(response.data);
         events.addAll(paginated.results);
@@ -31,7 +43,8 @@ class EventRepository {
         page++;
       }
 
-      return events.where((e) => e.date?.year == targetYear).toList();
+      _eventsByYearCache[targetYear] = events;
+      return events;
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }

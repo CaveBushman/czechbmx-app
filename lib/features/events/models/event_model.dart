@@ -48,6 +48,9 @@ class EventModel {
   final DateTime? date;
   final bool doubleRace;
   final int? organizerId;
+  final String? organizerName;
+  final double? organizerLat;
+  final double? organizerLon;
   final EventType type;
   final bool isUciRace;
   final String? director;
@@ -78,6 +81,9 @@ class EventModel {
     this.date,
     required this.doubleRace,
     this.organizerId,
+    this.organizerName,
+    this.organizerLat,
+    this.organizerLon,
     required this.type,
     required this.isUciRace,
     this.director,
@@ -137,6 +143,8 @@ class EventModel {
 
   DateTime? get unregisterTo => regCancelTo ?? regOpenTo;
 
+  bool get hasTrackCoordinates => organizerLat != null && organizerLon != null;
+
   factory EventModel.fromJson(Map<String, dynamic> json) {
     return EventModel(
       id: json['id'] as int,
@@ -146,6 +154,9 @@ class EventModel {
           : null,
       doubleRace: json['double_race'] as bool? ?? false,
       organizerId: json['organizer'] as int?,
+      organizerName: _stringOrNull(json['organizer_name']),
+      organizerLat: _doubleOrNull(json['organizer_lat']),
+      organizerLon: _doubleOrNull(json['organizer_lon']),
       type: EventType.fromString(json['type_for_ranking'] as String? ?? ''),
       isUciRace: json['is_uci_race'] as bool? ?? false,
       director: _stringOrNull(json['director']),
@@ -187,6 +198,13 @@ class EventModel {
   static String? _absoluteFileUrl(String? value) {
     if (value == null || value.isEmpty) return null;
     return ApiConstants.mediaPath(value);
+  }
+
+  static double? _doubleOrNull(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value.replaceAll(',', '.'));
+    return null;
   }
 }
 

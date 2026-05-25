@@ -116,6 +116,7 @@ class AppLocalizations {
   String get results => t('results');
   String get documents => t('documents');
   String get openOnWeb => t('openOnWeb');
+  String get navigateToTrack => t('navigateToTrack');
   String get eshopPickup => t('eshopPickup');
   String get place => t('place');
   String get time => t('time');
@@ -157,6 +158,21 @@ class AppLocalizations {
   String get shopLoadFailed => t('shopLoadFailed');
   String get phone => t('phone');
   String get allCategories => t('allCategories');
+  String get credit => t('credit');
+  String get topUpCredit => t('topUpCredit');
+  String get selectAmount => t('selectAmount');
+  String get creditBalance => t('creditBalance');
+  String get continueToPayment => t('continueToPayment');
+  String get customAmount => t('customAmount');
+  String get minimumAmount => t('minimumAmount');
+  String get searchArticles => t('searchArticles');
+  String get changePhoto => t('changePhoto');
+  String get fromCamera => t('fromCamera');
+  String get fromGallery => t('fromGallery');
+  String get photoChanged => t('photoChanged');
+  String get myRiderProfile => t('myRiderProfile');
+  String get creditRefunded => t('creditRefunded');
+  String get clubAffiliation => t('clubAffiliation');
 }
 
 class _AppLocalizationsDelegate
@@ -261,6 +277,7 @@ const _localizedValues = {
     'results': 'Výsledky',
     'documents': 'Dokumenty',
     'openOnWeb': 'Otevřít na webu',
+    'navigateToTrack': 'Naviguj na trať',
     'eshopPickup': 'Výdej e-shopu',
     'place': 'Místo',
     'time': 'Čas',
@@ -273,7 +290,8 @@ const _localizedValues = {
     'registerTitle': 'Registrace',
     'registerPrompt': 'Vytvořit nový účet',
     'registerSuccess': 'Registrace proběhla',
-    'registerSuccessDetail': 'Zkontroluj e-mail a aktivuj účet kliknutím na odkaz v e-mailu.',
+    'registerSuccessDetail':
+        'Zkontroluj e-mail a aktivuj účet kliknutím na odkaz v e-mailu.',
     'firstName': 'Jméno',
     'lastName': 'Příjmení',
     'fillAllFields': 'Vyplňte všechna pole.',
@@ -284,7 +302,8 @@ const _localizedValues = {
     'myEntries': 'Moje přihlášky',
     'noEntries': 'Nemáte žádné nadcházející přihlášky',
     'cancelEntry': 'Odhlásit',
-    'cancelEntryConfirm': 'Opravdu se chcete odhlásit? Poplatek bude vrácen do kreditu.',
+    'cancelEntryConfirm':
+        'Opravdu se chcete odhlásit? Poplatek bude vrácen do kreditu.',
     'cancel': 'Zrušit',
     'fee': 'Poplatek',
     'czk': 'Kč',
@@ -303,6 +322,21 @@ const _localizedValues = {
     'shopLoadFailed': 'Nepodařilo se načíst produkty',
     'phone': 'Telefon',
     'allCategories': 'Vše',
+    'credit': 'Kredit',
+    'topUpCredit': 'Nabít kredit',
+    'selectAmount': 'Vyberte částku',
+    'creditBalance': 'Zůstatek kreditu',
+    'continueToPayment': 'Přejít na platbu',
+    'customAmount': 'Vlastní částka',
+    'minimumAmount': '100 až 10 000 Kč',
+    'searchArticles': 'Hledat v článcích...',
+    'changePhoto': 'Změnit fotku',
+    'fromCamera': 'Fotoaparát',
+    'fromGallery': 'Galerie',
+    'photoChanged': 'Fotka aktualizována',
+    'myRiderProfile': 'Profil jezdce',
+    'creditRefunded': 'Kredit vrácen',
+    'clubAffiliation': 'Tým',
   },
   'en': {
     'appTitle': 'Czech BMX',
@@ -382,6 +416,7 @@ const _localizedValues = {
     'results': 'Results',
     'documents': 'Documents',
     'openOnWeb': 'Open on web',
+    'navigateToTrack': 'Navigate to track',
     'eshopPickup': 'E-shop pickup',
     'place': 'Place',
     'time': 'Time',
@@ -394,7 +429,8 @@ const _localizedValues = {
     'registerTitle': 'Register',
     'registerPrompt': 'Create a new account',
     'registerSuccess': 'Registration complete',
-    'registerSuccessDetail': 'Check your e-mail and activate your account by clicking the link.',
+    'registerSuccessDetail':
+        'Check your e-mail and activate your account by clicking the link.',
     'firstName': 'First name',
     'lastName': 'Last name',
     'fillAllFields': 'Please fill in all fields.',
@@ -405,7 +441,8 @@ const _localizedValues = {
     'myEntries': 'My registrations',
     'noEntries': 'No upcoming registrations',
     'cancelEntry': 'Unregister',
-    'cancelEntryConfirm': 'Are you sure you want to unregister? The fee will be refunded to your credit.',
+    'cancelEntryConfirm':
+        'Are you sure you want to unregister? The fee will be refunded to your credit.',
     'cancel': 'Cancel',
     'fee': 'Fee',
     'czk': 'CZK',
@@ -419,10 +456,26 @@ const _localizedValues = {
     'total': 'Total',
     'checkout': 'Place order',
     'orderSuccess': 'Order placed',
-    'orderSuccessDetail': 'Thank you for your order. We will contact you shortly.',
+    'orderSuccessDetail':
+        'Thank you for your order. We will contact you shortly.',
     'selectVariant': 'Select a variant',
     'shopLoadFailed': 'Could not load products',
     'phone': 'Phone',
     'allCategories': 'All',
+    'credit': 'Credit',
+    'topUpCredit': 'Top up credit',
+    'selectAmount': 'Select amount',
+    'creditBalance': 'Credit balance',
+    'continueToPayment': 'Continue to payment',
+    'customAmount': 'Custom amount',
+    'minimumAmount': '100 to 10,000 CZK',
+    'searchArticles': 'Search articles...',
+    'changePhoto': 'Change photo',
+    'fromCamera': 'Camera',
+    'fromGallery': 'Gallery',
+    'photoChanged': 'Photo updated',
+    'myRiderProfile': 'Rider profile',
+    'creditRefunded': 'Credit refunded',
+    'clubAffiliation': 'Club',
   },
 };

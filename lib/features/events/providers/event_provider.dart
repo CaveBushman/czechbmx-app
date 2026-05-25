@@ -9,7 +9,15 @@ final eventsProvider = AsyncNotifierProvider<EventsNotifier, List<EventModel>>(
 );
 
 final eventDetailProvider = FutureProvider.family<EventModel, int>(
-  (ref, id) => ref.read(eventRepositoryProvider).fetchEventDetail(id),
+  (ref, id) async {
+    final cached = ref
+        .read(eventsProvider)
+        .valueOrNull
+        ?.where((event) => event.id == id)
+        .firstOrNull;
+    if (cached != null) return cached;
+    return ref.read(eventRepositoryProvider).fetchEventDetail(id);
+  },
 );
 
 class EventsNotifier extends AsyncNotifier<List<EventModel>> {
@@ -23,7 +31,9 @@ class EventsNotifier extends AsyncNotifier<List<EventModel>> {
     state = const AsyncLoading();
     final year = ref.read(selectedYearProvider);
     state = await AsyncValue.guard(
-      () => ref.read(eventRepositoryProvider).fetchEvents(year: year),
+      () => ref
+          .read(eventRepositoryProvider)
+          .fetchEvents(year: year, forceRefresh: true),
     );
   }
 }

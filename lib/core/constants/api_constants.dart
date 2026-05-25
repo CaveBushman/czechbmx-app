@@ -14,6 +14,7 @@ class ApiConstants {
   static const String events = '/api/events/';
   static const String riders = '/api/riders/';
   static const String clubs = '/api/clubs/';
+  static const String teams = '/api/teams/';
   static const String authLogin = '/api/auth/login/';
   static const String authLogout = '/api/auth/logout/';
   static const String authMe = '/api/auth/me/';
@@ -31,10 +32,16 @@ class ApiConstants {
   static String eventEntryInfo(int id) => '/api/events/$id/entry-info/';
   static String eventEnter(int id) => '/api/events/$id/enter/';
 
-  static const String shopCategories = '/api/shop/categories/';
-  static const String shopProducts = '/api/shop/products/';
-  static String shopProduct(String slug) => '/api/shop/products/$slug/';
-  static const String shopCheckout = '/api/shop/checkout/';
+  static const String shopCategories = '/api/eshop/categories/';
+  static const String shopProducts = '/api/eshop/products/';
+  static String shopProduct(String slug) => '/api/eshop/products/$slug/';
+  static const String creditTopUp = '/api/credit/topup/';
+  static const String shopCart = '/api/eshop/cart/';
+  static String shopCartItem(int variantId) => '/api/eshop/cart/$variantId/';
+  static const String shopCheckout = '/api/eshop/checkout/';
+  static const String shopOrders = '/api/eshop/orders/';
+  static String shopOrder(int id) => '/api/eshop/orders/$id/';
+  static String shopOrderCancel(int id) => '/api/eshop/orders/$id/cancel/';
 
   static String mediaPath(String relativePath) {
     if (relativePath.startsWith('http')) return relativePath;

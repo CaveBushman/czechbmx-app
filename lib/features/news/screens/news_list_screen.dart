@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -15,6 +17,9 @@ class NewsListScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final newsAsync = ref.watch(newsListProvider);
     final scrollController = useScrollController();
+    final isSearching = useState(false);
+    final searchCtrl = useTextEditingController();
+    final searchDebounce = useRef<Timer?>(null);
 
     // Infinite scroll trigger
     useEffect(() {
@@ -29,6 +34,20 @@ class NewsListScreen extends HookConsumerWidget {
       return () => scrollController.removeListener(onScroll);
     }, [scrollController]);
 
+    // Close search on back
+    useEffect(() {
+      return () {
+        searchDebounce.value?.cancel();
+      };
+    }, const []);
+
+    void closeSearch() {
+      isSearching.value = false;
+      searchCtrl.clear();
+      searchDebounce.value?.cancel();
+      ref.read(newsListProvider.notifier).search('');
+    }
+
     return Scaffold(
       body: RefreshIndicator(
         color: AppColors.primary,
@@ -40,32 +59,61 @@ class NewsListScreen extends HookConsumerWidget {
               expandedHeight: 60,
               floating: true,
               snap: true,
-              title: Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'B',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
-                        ),
+              title: isSearching.value
+                  ? TextField(
+                      controller: searchCtrl,
+                      autofocus: true,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                      decoration: InputDecoration(
+                        hintText: context.l10n.searchArticles,
+                        hintStyle: TextStyle(color: context.colors.textMuted),
+                        border: InputBorder.none,
                       ),
+                      onChanged: (q) {
+                        searchDebounce.value?.cancel();
+                        searchDebounce.value = Timer(
+                          const Duration(milliseconds: 400),
+                          () => ref
+                              .read(newsListProvider.notifier)
+                              .search(q),
+                        );
+                      },
+                    )
+                  : Row(
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'B',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(context.l10n.appTitle),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(context.l10n.appTitle),
-                ],
-              ),
               actions: [
-                IconButton(icon: const Icon(Icons.search), onPressed: () {}),
+                if (isSearching.value)
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: closeSearch,
+                  )
+                else
+                  IconButton(
+                    icon: const Icon(Icons.search),
+                    onPressed: () => isSearching.value = true,
+                  ),
               ],
             ),
             SliverToBoxAdapter(
@@ -88,7 +136,11 @@ class NewsListScreen extends HookConsumerWidget {
               ),
               data: (pageState) {
                 if (pageState.articles.isEmpty) {
-                  return const SliverFillRemaining(child: _EmptyView());
+                  return SliverFillRemaining(
+                    child: _EmptyView(
+                      isSearch: pageState.searchQuery != null,
+                    ),
+                  );
                 }
                 return _NewsList(
                   articles: pageState.articles,
@@ -259,7 +311,8 @@ class _ErrorView extends StatelessWidget {
 }
 
 class _EmptyView extends StatelessWidget {
-  const _EmptyView();
+  final bool isSearch;
+  const _EmptyView({this.isSearch = false});
 
   @override
   Widget build(BuildContext context) {
@@ -268,13 +321,13 @@ class _EmptyView extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            Icons.newspaper_outlined,
+            isSearch ? Icons.search_off : Icons.newspaper_outlined,
             size: 64,
             color: context.colors.textMuted,
           ),
           const SizedBox(height: 16),
           Text(
-            context.l10n.noNews,
+            isSearch ? context.l10n.noNews : context.l10n.noNews,
             style: Theme.of(context).textTheme.headlineMedium,
           ),
         ],
