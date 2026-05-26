@@ -139,7 +139,12 @@ class _CardContent extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (event.date != null) _DateBadge(date: event.date!, typeColor: typeColor),
+            if (event.date != null)
+              _DateBadge(
+                date: event.date!,
+                raceStart: event.canceled ? null : event.raceStart,
+                typeColor: typeColor,
+              ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -197,15 +202,21 @@ class _CardContent extends StatelessWidget {
 
 class _DateBadge extends StatelessWidget {
   final DateTime date;
+  final DateTime? raceStart;
   final Color typeColor;
 
-  const _DateBadge({required this.date, required this.typeColor});
+  const _DateBadge({
+    required this.date,
+    required this.typeColor,
+    this.raceStart,
+  });
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final countdown = _countdownLabel(context);
     return Container(
-      width: 48,
+      width: 52,
       padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
         color: typeColor.withValues(alpha: 0.10),
@@ -233,9 +244,39 @@ class _DateBadge extends StatelessWidget {
               letterSpacing: 0.5,
             ),
           ),
+          if (countdown != null) ...[
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              decoration: BoxDecoration(
+                color: countdown.color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                countdown.label,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  color: countdown.color,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  ({String label, Color color})? _countdownLabel(BuildContext context) {
+    final start = raceStart;
+    if (start == null) return null;
+    final now = DateTime.now();
+    if (start.isBefore(now)) return null;
+    final days = start.difference(now).inHours ~/ 24;
+    if (days == 0) return (label: context.l10n.raceToday, color: AppColors.success);
+    if (days == 1) return (label: context.l10n.raceTomorrow, color: const Color(0xFFF59E0B));
+    return (label: '$days ${context.l10n.daysUntilRaceShort}', color: context.colors.textMuted);
   }
 }
 

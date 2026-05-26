@@ -12,6 +12,11 @@ import '../../entries/entries_repository.dart';
 import '../../entries/models/foreign_entry_model.dart';
 import '../models/event_model.dart';
 
+// API values required by the backend — must stay as Czech strings
+const _genderMale = 'Muž';
+const _genderFemale = 'Žena';
+const _genderOther = 'Ostatní';
+
 Future<void> openForeignEntrySheet(
   BuildContext context,
   EventModel event,
@@ -45,7 +50,7 @@ class _ForeignEntrySheetState extends ConsumerState<ForeignEntrySheet> {
   final _transponder24Controller = TextEditingController();
 
   DateTime? _dateOfBirth;
-  String _gender = 'Muž';
+  String _gender = _genderMale;
 
   ForeignEntryInfo? _info;
   String? _lookupStatus; // null = idle, 'loading', 'found', 'not_found', 'error'
@@ -163,7 +168,7 @@ class _ForeignEntrySheetState extends ConsumerState<ForeignEntrySheet> {
       if (rider.dateOfBirth != null) {
         _dateOfBirth = DateTime.tryParse(rider.dateOfBirth!);
       }
-      _gender = rider.gender.isNotEmpty ? rider.gender : 'Muž';
+      _gender = rider.gender.isNotEmpty ? rider.gender : _genderMale;
       _resetCategorySelection(info.options);
     }
   }
@@ -189,7 +194,7 @@ class _ForeignEntrySheetState extends ConsumerState<ForeignEntrySheet> {
     _transponder24Controller.clear();
     setState(() {
       _dateOfBirth = null;
-      _gender = 'Muž';
+      _gender = _genderMale;
       _info = null;
       _lookupStatus = null;
       _lookupError = null;
@@ -226,7 +231,7 @@ class _ForeignEntrySheetState extends ConsumerState<ForeignEntrySheet> {
     }
     if (!_is20 && !_is24) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vyber alespoň jednu kategorii.')),
+        SnackBar(content: Text(context.l10n.selectAtLeastOneCategory)),
       );
       return;
     }
@@ -488,11 +493,10 @@ class _ForeignEntrySheetState extends ConsumerState<ForeignEntrySheet> {
                       initialValue: _gender,
                       decoration: InputDecoration(
                           labelText: context.l10n.gender),
-                      items: const [
-                        DropdownMenuItem(value: 'Muž', child: Text('Muž')),
-                        DropdownMenuItem(value: 'Žena', child: Text('Žena')),
-                        DropdownMenuItem(
-                            value: 'Ostatní', child: Text('Ostatní')),
+                      items: [
+                        DropdownMenuItem(value: _genderMale, child: Text(context.l10n.genderMale)),
+                        DropdownMenuItem(value: _genderFemale, child: Text(context.l10n.genderFemale)),
+                        DropdownMenuItem(value: _genderOther, child: Text(context.l10n.genderOther)),
                       ],
                       onChanged: (v) {
                         if (v != null) setState(() => _gender = v);
@@ -566,7 +570,7 @@ class _ForeignEntrySheetState extends ConsumerState<ForeignEntrySheet> {
               if (opts != null) ...[
                 const SizedBox(height: 14),
                 Text(
-                  'Kategorie',
+                  context.l10n.categories,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 _CategoryTile(

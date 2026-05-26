@@ -379,8 +379,11 @@ class _CheckoutSheet extends HookConsumerWidget {
                       label: context.l10n.email,
                       keyboardType: TextInputType.emailAddress,
                       required: true,
-                      validator: (v) =>
-                          v != null && v.contains('@') ? null : 'Neplatný e-mail',
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return context.l10n.invalidEmail;
+                        final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$').hasMatch(v.trim());
+                        return ok ? null : context.l10n.invalidEmail;
+                      },
                     ),
                     const SizedBox(height: 12),
                     _Field(
@@ -519,7 +522,9 @@ class _Field extends StatelessWidget {
       ),
       validator: validator ??
           (required
-              ? (v) => (v == null || v.trim().isEmpty) ? 'Povinné pole' : null
+              ? (v) => (v == null || v.trim().isEmpty)
+                  ? context.l10n.requiredField
+                  : null
               : null),
     );
   }

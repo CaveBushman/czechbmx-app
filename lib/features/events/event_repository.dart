@@ -1,5 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/network/dio_client.dart';
 import 'models/event_model.dart';
@@ -14,17 +17,43 @@ class EventRepository {
 
   EventRepository(this._dio);
 
+  Future<File> _cacheFile(int year) async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File('${dir.path}/events_cache_$year.json');
+  }
+
+  Future<void> _saveToCache(int year, List<Map<String, dynamic>> rawItems) async {
+    try {
+      final file = await _cacheFile(year);
+      await file.writeAsString(jsonEncode(rawItems));
+    } catch (_) {}
+  }
+
+  Future<List<EventModel>?> _loadFromCache(int year) async {
+    try {
+      final file = await _cacheFile(year);
+      if (!await file.exists()) return null;
+      final list = jsonDecode(await file.readAsString()) as List<dynamic>;
+      return list
+          .map((e) => EventModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<List<EventModel>> fetchEvents({
     int? year,
     bool forceRefresh = false,
   }) async {
-    try {
-      final targetYear = year ?? DateTime.now().year;
-      if (!forceRefresh && _eventsByYearCache.containsKey(targetYear)) {
-        return _eventsByYearCache[targetYear]!;
-      }
+    final targetYear = year ?? DateTime.now().year;
 
-      final events = <EventModel>[];
+    if (!forceRefresh && _eventsByYearCache.containsKey(targetYear)) {
+      return _eventsByYearCache[targetYear]!;
+    }
+
+    try {
+      final rawItems = <Map<String, dynamic>>[];
       var page = 1;
       var hasMore = true;
 
@@ -38,14 +67,22 @@ class EventRepository {
           },
         );
         final paginated = PaginatedEvents.fromJson(response.data);
-        events.addAll(paginated.results);
+        // Collect raw maps for disk cache
+        final results = (response.data['results'] as List?)
+            ?.cast<Map<String, dynamic>>() ?? [];
+        rawItems.addAll(results);
         hasMore = paginated.next != null;
         page++;
       }
 
+      final events = rawItems.map(EventModel.fromJson).toList();
       _eventsByYearCache[targetYear] = events;
+      _saveToCache(targetYear, rawItems);
       return events;
     } on DioException catch (e) {
+      // Network error → try disk cache
+      final cached = await _loadFromCache(targetYear);
+      if (cached != null) return cached;
       throw ApiException.fromDio(e);
     }
   }

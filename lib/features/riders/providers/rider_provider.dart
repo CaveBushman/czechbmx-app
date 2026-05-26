@@ -44,10 +44,7 @@ class RidersNotifier extends AsyncNotifier<List<RiderModel>> {
   Future<List<RiderModel>> build() async {
     final authState = await ref.watch(authProvider.future);
     if (authState is! AuthAuthenticated) {
-      throw const ApiException(
-        'Pro zobrazení jezdců se musíte přihlásit.',
-        statusCode: 401,
-      );
+      throw const ApiException('login_required', statusCode: 401);
     }
 
     final filter = ref.watch(ridersFilterProvider);
@@ -59,10 +56,7 @@ class RidersNotifier extends AsyncNotifier<List<RiderModel>> {
     final authState = await ref.read(authProvider.future);
     if (authState is! AuthAuthenticated) {
       state = AsyncError(
-        const ApiException(
-          'Pro zobrazení jezdců se musíte přihlásit.',
-          statusCode: 401,
-        ),
+        const ApiException('login_required', statusCode: 401),
         StackTrace.current,
       );
       return;
@@ -85,10 +79,7 @@ class RiderDetailNotifier extends FamilyAsyncNotifier<RiderModel, int> {
   Future<RiderModel> build(int uciId) async {
     final authState = await ref.watch(authProvider.future);
     if (authState is! AuthAuthenticated) {
-      throw const ApiException(
-        'Pro zobrazení jezdce se musíte přihlásit.',
-        statusCode: 401,
-      );
+      throw const ApiException('login_required', statusCode: 401);
     }
 
     final cached = ref

@@ -1,4 +1,5 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../../../core/services/home_widget_service.dart';
 import '../event_repository.dart';
 import '../models/event_model.dart';
 
@@ -14,19 +15,28 @@ final eventDetailProvider = FutureProvider.family<EventModel, int>(
 
 class EventsNotifier extends AsyncNotifier<List<EventModel>> {
   @override
-  Future<List<EventModel>> build() {
+  Future<List<EventModel>> build() async {
     final year = ref.watch(selectedYearProvider);
-    return ref.read(eventRepositoryProvider).fetchEvents(year: year);
+    final events =
+        await ref.read(eventRepositoryProvider).fetchEvents(year: year);
+    _updateWidget(events);
+    return events;
   }
 
   Future<void> refresh() async {
     state = const AsyncLoading();
     final year = ref.read(selectedYearProvider);
-    state = await AsyncValue.guard(
-      () => ref
+    state = await AsyncValue.guard(() async {
+      final events = await ref
           .read(eventRepositoryProvider)
-          .fetchEvents(year: year, forceRefresh: true),
-    );
+          .fetchEvents(year: year, forceRefresh: true);
+      _updateWidget(events);
+      return events;
+    });
+  }
+
+  void _updateWidget(List<EventModel> events) {
+    HomeWidgetService.updateNextRace(events).ignore();
   }
 }
 

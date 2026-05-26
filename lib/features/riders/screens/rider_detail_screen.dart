@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/splash_screen.dart';
@@ -32,6 +34,57 @@ class RiderDetailScreen extends ConsumerWidget {
       data: (rider) => _RiderDetailBody(rider: rider),
     );
   }
+}
+
+void _showQrDialog(BuildContext context, RiderModel rider) {
+  final url = 'https://czechbmx.cz/jezdci/${rider.uciId}';
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(context.l10n.riderQrCode),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            rider.fullName,
+            style: Theme.of(ctx).textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          QrImageView(
+            data: url,
+            version: QrVersions.auto,
+            size: 200,
+            backgroundColor: Colors.white,
+            padding: const EdgeInsets.all(12),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            url,
+            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                  color: context.colors.textMuted,
+                ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: Text(context.l10n.close),
+        ),
+        TextButton(
+          onPressed: () {
+            Share.share(
+              '${context.l10n.shareProfile}: $url',
+              subject: rider.fullName,
+            );
+          },
+          child: Text(context.l10n.shareProfile),
+        ),
+      ],
+    ),
+  );
 }
 
 class _RiderDetailBody extends ConsumerWidget {
@@ -68,6 +121,11 @@ class _RiderDetailBody extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.qr_code_outlined),
+                tooltip: context.l10n.riderQrCode,
+                onPressed: () => _showQrDialog(context, rider),
+              ),
               IconButton(
                 icon: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
@@ -154,60 +212,64 @@ class _RiderDetailBody extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // Info tiles
-                  if (teamName != null && teamName.isNotEmpty)
+                  // ── Group: Identity & Club ──
+                  _DetailCard(children: [
+                    if (teamName != null && teamName.isNotEmpty)
+                      _InfoTile(
+                        icon: Icons.groups_outlined,
+                        label: context.l10n.clubAffiliation,
+                        value: teamName,
+                      ),
+                    if (rider.plateNumber != null && rider.plateNumber!.isNotEmpty)
+                      _InfoTile(
+                        icon: Icons.confirmation_number_outlined,
+                        label: context.l10n.plateNumber,
+                        value: rider.plateNumber!,
+                      ),
                     _InfoTile(
-                      icon: Icons.groups_outlined,
-                      label: context.l10n.clubAffiliation,
-                      value: teamName,
+                      icon: Icons.badge_outlined,
+                      label: 'UCI ID',
+                      value: rider.uciId.toString(),
                     ),
-                  if (rider.plateNumber != null &&
-                      rider.plateNumber!.isNotEmpty)
-                    _InfoTile(
-                      icon: Icons.confirmation_number_outlined,
-                      label: context.l10n.plateNumber,
-                      value: rider.plateNumber!,
-                    ),
-                  _InfoTile(
-                    icon: Icons.looks_one_outlined,
-                    label: context.l10n.category20,
-                    value: class20,
+                  ]),
+
+                  // ── Group: Categories & Rankings ──
+                  _DetailCard(
+                    title: context.l10n.rankings,
+                    children: [
+                      _InfoTile(
+                        icon: Icons.looks_one_outlined,
+                        label: context.l10n.category20,
+                        value: class20,
+                        trailing: rider.ranking20 != null ? Text('#${rider.ranking20}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)) : null,
+                      ),
+                      _InfoTile(
+                        icon: Icons.looks_two_outlined,
+                        label: context.l10n.category24,
+                        value: class24,
+                        trailing: rider.ranking24 != null ? Text('#${rider.ranking24}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)) : null,
+                      ),
+                    ],
                   ),
-                  _InfoTile(
-                    icon: Icons.looks_two_outlined,
-                    label: context.l10n.category24,
-                    value: class24,
-                  ),
-                  _InfoTile(
-                    icon: Icons.badge_outlined,
-                    label: 'UCI ID',
-                    value: rider.uciId.toString(),
-                  ),
-                  if (rider.ranking20 != null && rider.ranking20!.isNotEmpty)
-                    _InfoTile(
-                      icon: Icons.emoji_events_outlined,
-                      label: context.l10n.ranking20,
-                      value: rider.ranking20!,
-                    ),
-                  if (rider.ranking24 != null && rider.ranking24!.isNotEmpty)
-                    _InfoTile(
-                      icon: Icons.emoji_events_outlined,
-                      label: context.l10n.ranking24,
-                      value: rider.ranking24!,
-                    ),
-                  if (rider.transponder20 != null &&
-                      rider.transponder20!.isNotEmpty)
-                    _InfoTile(
-                      icon: Icons.sensors_outlined,
-                      label: context.l10n.transponder20,
-                      value: rider.transponder20!,
-                    ),
-                  if (rider.transponder24 != null &&
-                      rider.transponder24!.isNotEmpty)
-                    _InfoTile(
-                      icon: Icons.sensors_outlined,
-                      label: context.l10n.transponder24,
-                      value: rider.transponder24!,
+
+                  // ── Group: Equipment ──
+                  if ((rider.transponder20?.isNotEmpty ?? false) || (rider.transponder24?.isNotEmpty ?? false))
+                    _DetailCard(
+                      title: 'Transpondery',
+                      children: [
+                        if (rider.transponder20 != null && rider.transponder20!.isNotEmpty)
+                          _InfoTile(
+                            icon: Icons.sensors_outlined,
+                            label: context.l10n.transponder20,
+                            value: rider.transponder20!,
+                          ),
+                        if (rider.transponder24 != null && rider.transponder24!.isNotEmpty)
+                          _InfoTile(
+                            icon: Icons.sensors_outlined,
+                            label: context.l10n.transponder24,
+                            value: rider.transponder24!,
+                          ),
+                      ],
                     ),
                 ],
               ),
@@ -311,44 +373,98 @@ class _InfoTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+  final Widget? trailing;
 
   const _InfoTile({
     required this.icon,
     required this.label,
     required this.value,
+    this.trailing,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: colors.textMuted, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: Theme.of(context).textTheme.bodySmall),
-                  Text(
-                    value,
-                    style: Theme.of(context).textTheme.titleMedium,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: AppColors.primary, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.textMuted,
+                      ),
+                ),
+                Text(
+                  value,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          if (trailing != null) trailing!,
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailCard extends StatelessWidget {
+  final List<Widget> children;
+  final String? title;
+
+  const _DetailCard({required this.children, this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: context.colors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: context.colors.border.withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                title!.toUpperCase(),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      letterSpacing: 1,
+                      color: context.colors.textMuted,
+                      fontWeight: FontWeight.w800,
+                    ),
               ),
             ),
-          ],
-        ),
+          ...children,
+        ],
       ),
     );
   }

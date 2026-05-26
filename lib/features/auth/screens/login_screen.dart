@@ -3,9 +3,14 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../core/l10n/app_localizations.dart';
+import '../../../core/services/biometric_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../riders/providers/rider_provider.dart';
 import '../providers/auth_provider.dart';
+
+final _biometricReadyProvider = FutureProvider<bool>((ref) async {
+  return await BiometricService.isAvailable() && await BiometricService.isEnabled();
+});
 
 class LoginScreen extends HookConsumerWidget {
   const LoginScreen({super.key});
@@ -17,6 +22,7 @@ class LoginScreen extends HookConsumerWidget {
     final obscure = useState(true);
     final isLoading = useState(false);
     final errorMsg = useState<String?>(null);
+    final biometricReady = ref.watch(_biometricReadyProvider).valueOrNull ?? false;
 
     Future<void> submit() async {
       final email = emailCtrl.text.trim();
@@ -181,6 +187,39 @@ class LoginScreen extends HookConsumerWidget {
                         : Text(context.l10n.login),
                   ),
                 ),
+                if (biometricReady) ...[
+                  const SizedBox(height: 4),
+                  OutlinedButton.icon(
+                    onPressed: isLoading.value
+                        ? null
+                        : () async {
+                            isLoading.value = true;
+                            errorMsg.value = null;
+                            try {
+                              final ok = await ref
+                                  .read(authProvider.notifier)
+                                  .loginWithBiometrics(
+                                    context.l10n.biometricLoginReason,
+                                  );
+                              if (!ok && context.mounted) {
+                                errorMsg.value = context.l10n.biometricFailed;
+                              } else if (ok && context.mounted) {
+                                ref.invalidate(ridersProvider);
+                                context.go('/news');
+                              }
+                            } finally {
+                              isLoading.value = false;
+                            }
+                          },
+                    icon: const Icon(Icons.fingerprint),
+                    label: Text(context.l10n.loginWithBiometrics),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      side: const BorderSide(color: AppColors.primary),
+                      foregroundColor: AppColors.primary,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: () => context.go('/register'),

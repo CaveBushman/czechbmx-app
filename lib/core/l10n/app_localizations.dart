@@ -47,6 +47,8 @@ class AppLocalizations {
   String get profile => t('profile');
   String get login => t('login');
   String get logout => t('logout');
+  String get logoutConfirm => t('logoutConfirm');
+  String get offline => t('offline');
   String get retry => t('retry');
   String get continueWithoutLogin => t('continueWithoutLogin');
   String get email => t('email');
@@ -142,6 +144,7 @@ class AppLocalizations {
   String get cancelEntry => t('cancelEntry');
   String get cancelEntryConfirm => t('cancelEntryConfirm');
   String get cancel => t('cancel');
+  String get close => t('close');
   String get fee => t('fee');
   String get czk => t('czk');
   String get shop => t('shop');
@@ -160,6 +163,20 @@ class AppLocalizations {
   String get shopLoadFailed => t('shopLoadFailed');
   String get phone => t('phone');
   String get allCategories => t('allCategories');
+  String get addedToCart => t('addedToCart');
+  String get material => t('material');
+  String get fitNote => t('fitNote');
+  String get invalidEmail => t('invalidEmail');
+  String get requiredField => t('requiredField');
+  String get selectAtLeastOneCategory => t('selectAtLeastOneCategory');
+  String get categories => t('categories');
+  String get totalRegistered => t('totalRegistered');
+  String get ridersInCategory => t('ridersInCategory');
+  String get uciCode => t('uciCode');
+  String get beginner => t('beginner');
+  String get rider => t('rider');
+  String get elite => t('elite');
+  String get bmxRider => t('bmxRider');
   String get credit => t('credit');
   String get topUpCredit => t('topUpCredit');
   String get selectAmount => t('selectAmount');
@@ -172,6 +189,8 @@ class AppLocalizations {
   String get fromCamera => t('fromCamera');
   String get fromGallery => t('fromGallery');
   String get photoChanged => t('photoChanged');
+  String get cropPhoto => t('cropPhoto');
+  String get save => t('save');
   String get myRiderProfile => t('myRiderProfile');
   String get creditRefunded => t('creditRefunded');
   String get clubAffiliation => t('clubAffiliation');
@@ -205,6 +224,45 @@ class AppLocalizations {
   String get plateRequestSuccess => t('plateRequestSuccess');
   String get plateRequestPendingApproval => t('plateRequestPendingApproval');
   String get lookupFromFederation => t('lookupFromFederation');
+  String get uciIdMustBe11Digits => t('uciIdMustBe11Digits');
+  String get noFreePlates => t('noFreePlates');
+  String get submitError => t('submitError');
+
+  // Entry sheet
+  String get noCategoryAvailable => t('noCategoryAvailable');
+  String get alreadyRegistered => t('alreadyRegistered');
+  String get notAvailable => t('notAvailable');
+
+  // Race countdown
+  String get raceToday => t('raceToday');
+  String get raceTomorrow => t('raceTomorrow');
+  String get daysUntilRace => t('daysUntilRace');
+  String get daysUntilRaceShort => t('daysUntilRaceShort');
+  String get nextRace => t('nextRace');
+
+  // Gender (display labels, API values stay Czech)
+  String get genderMale => t('genderMale');
+  String get genderFemale => t('genderFemale');
+  String get genderOther => t('genderOther');
+
+  // Gallery
+  String get sharePhoto => t('sharePhoto');
+
+  // Order history
+  String get myOrders => t('myOrders');
+  String get noOrders => t('noOrders');
+  String get orderNumber => t('orderNumber');
+  String get orderStatusLabel => t('orderStatusLabel');
+
+  // News bookmarks
+  String get savedArticles => t('savedArticles');
+  String get noSavedArticles => t('noSavedArticles');
+  String get saveArticle => t('saveArticle');
+  String get unsaveArticle => t('unsaveArticle');
+
+  // Rider share
+  String get shareProfile => t('shareProfile');
+  String get riderQrCode => t('riderQrCode');
 
   // Share
   String get share => t('share');
@@ -228,6 +286,45 @@ class AppLocalizations {
   String get onboardingFeatureEventsDesc => t('onboardingFeatureEventsDesc');
   String get onboardingFeatureRiders => t('onboardingFeatureRiders');
   String get onboardingFeatureRidersDesc => t('onboardingFeatureRidersDesc');
+
+  // Role badges
+  String get roleAdmin => t('roleAdmin');
+  String get roleRider => t('roleRider');
+  String get roleClubManager => t('roleClubManager');
+  String get roleCommissar => t('roleCommissar');
+  String get roleTrainer => t('roleTrainer');
+
+  // Points abbreviation
+  String get pointsAbbr => t('pointsAbbr');
+
+  // Calendar & PDF
+  String get addToCalendar => t('addToCalendar');
+  String get downloadingPdf => t('downloadingPdf');
+
+  // Biometric
+  String get biometricLoginReason => t('biometricLoginReason');
+  String get biometricFailed => t('biometricFailed');
+  String get loginWithBiometrics => t('loginWithBiometrics');
+  String get biometricUnlock => t('biometricUnlock');
+  String get biometricUnlockDesc => t('biometricUnlockDesc');
+
+  // Font size
+  String get fontSizeSettings => t('fontSizeSettings');
+
+  // Generic
+  String get viewDetail => t('viewDetail');
+
+  // QR scanner
+  String get qrScanUciId => t('qrScanUciId');
+  String get qrScanHint => t('qrScanHint');
+  String get scanQrCode => t('scanQrCode');
+
+  // Events map
+  String get eventsMap => t('eventsMap');
+  String get noEventsWithLocation => t('noEventsWithLocation');
+
+  // Home widget
+  String get daysAbbr => t('daysAbbr');
 }
 
 class _AppLocalizationsDelegate
@@ -263,6 +360,8 @@ const _localizedValues = {
     'profile': 'Profil',
     'login': 'Přihlásit se',
     'logout': 'Odhlásit se',
+    'logoutConfirm': 'Opravdu se chcete odhlásit?',
+    'offline': 'Jste offline',
     'retry': 'Zkusit znovu',
     'continueWithoutLogin': 'Pokračovat bez přihlášení',
     'email': 'E-mail',
@@ -361,6 +460,7 @@ const _localizedValues = {
     'cancelEntryConfirm':
         'Opravdu se chcete odhlásit? Poplatek bude vrácen do kreditu.',
     'cancel': 'Zrušit',
+    'close': 'Zavřít',
     'fee': 'Poplatek',
     'czk': 'Kč',
     'shop': 'E-shop',
@@ -379,6 +479,20 @@ const _localizedValues = {
     'shopLoadFailed': 'Nepodařilo se načíst produkty',
     'phone': 'Telefon',
     'allCategories': 'Vše',
+    'addedToCart': 'Přidáno!',
+    'material': 'Materiál',
+    'fitNote': 'Střih',
+    'invalidEmail': 'Neplatný e-mail',
+    'requiredField': 'Povinné pole',
+    'selectAtLeastOneCategory': 'Vyber alespoň jednu kategorii.',
+    'categories': 'Kategorie',
+    'totalRegistered': 'Celkem přihlášeno',
+    'ridersInCategory': 'Počet jezdců v kategorii',
+    'uciCode': 'UCI kód',
+    'beginner': 'Začátečník',
+    'rider': 'Jezdec',
+    'elite': 'Elite',
+    'bmxRider': 'BMX JEZDEC',
     'credit': 'Kredit',
     'topUpCredit': 'Nabít kredit',
     'selectAmount': 'Vyberte částku',
@@ -391,6 +505,8 @@ const _localizedValues = {
     'fromCamera': 'Fotoaparát',
     'fromGallery': 'Galerie',
     'photoChanged': 'Fotka aktualizována',
+    'cropPhoto': 'Výřez fotky',
+    'save': 'Uložit',
     'myRiderProfile': 'Profil jezdce',
     'creditRefunded': 'Kredit vrácen',
     'clubAffiliation': 'Tým',
@@ -439,6 +555,52 @@ const _localizedValues = {
     'plateRequestSuccess': 'Žádost odeslána',
     'plateRequestPendingApproval': 'Žádost čeká na schválení administrátorem.',
     'lookupFromFederation': 'Ověřit UCI ID v databázi ČSC',
+    'uciIdMustBe11Digits': 'UCI ID musí mít 11 číslic',
+    'noFreePlates': 'Žádná volná čísla.',
+    'submitError': 'Chyba při odesílání.',
+    'noCategoryAvailable': 'Pro jezdce není dostupná žádná kategorie.',
+    'alreadyRegistered': 'Již přihlášeno',
+    'notAvailable': 'Není dostupné',
+    'raceToday': 'Dnes',
+    'raceTomorrow': 'Zítra',
+    'daysUntilRace': 'dní do závodu',
+    'daysUntilRaceShort': 'd',
+    'nextRace': 'Příští závod',
+    'genderMale': 'Muž',
+    'genderFemale': 'Žena',
+    'genderOther': 'Ostatní',
+    'sharePhoto': 'Sdílet fotku',
+    'myOrders': 'Moje objednávky',
+    'noOrders': 'Žádné objednávky',
+    'orderNumber': 'Objednávka č.',
+    'orderStatusLabel': 'Stav',
+    'savedArticles': 'Uložené články',
+    'noSavedArticles': 'Žádné uložené články',
+    'saveArticle': 'Uložit',
+    'unsaveArticle': 'Odebrat',
+    'shareProfile': 'Sdílet profil jezdce',
+    'riderQrCode': 'QR kód profilu',
+    'roleAdmin': 'Admin',
+    'roleRider': 'Jezdec',
+    'roleClubManager': 'Manažer klubu',
+    'roleCommissar': 'Komisař',
+    'roleTrainer': 'Trenér',
+    'pointsAbbr': 'b.',
+    'addToCalendar': 'Přidat do kalendáře',
+    'downloadingPdf': 'Stahování PDF…',
+    'biometricLoginReason': 'Přihlaste se pomocí biometrie',
+    'biometricFailed': 'Biometrické ověření selhalo',
+    'loginWithBiometrics': 'Přihlásit biometrikou',
+    'biometricUnlock': 'Biometrické odemčení',
+    'biometricUnlockDesc': 'Přihlásit se otiskem prstu nebo Face ID',
+    'fontSizeSettings': 'Velikost textu',
+    'viewDetail': 'Zobrazit detail',
+    'qrScanUciId': 'Skenovat UCI ID',
+    'qrScanHint': 'Nasměrujte fotoaparát na QR kód s UCI ID jezdce',
+    'scanQrCode': 'Skenovat QR kód',
+    'eventsMap': 'Mapa BMX tratí',
+    'noEventsWithLocation': 'Žádné tratě s polohou',
+    'daysAbbr': 'd',
   },
   'sk': {
     'appTitle': 'Czech BMX',
@@ -1270,6 +1432,8 @@ const _localizedValues = {
     'profile': 'Profile',
     'login': 'Sign in',
     'logout': 'Sign out',
+    'logoutConfirm': 'Are you sure you want to sign out?',
+    'offline': 'You are offline',
     'retry': 'Try again',
     'continueWithoutLogin': 'Continue without signing in',
     'email': 'E-mail',
@@ -1368,6 +1532,7 @@ const _localizedValues = {
     'cancelEntryConfirm':
         'Are you sure you want to unregister? The fee will be refunded to your credit.',
     'cancel': 'Cancel',
+    'close': 'Close',
     'fee': 'Fee',
     'czk': 'CZK',
     'shop': 'E-shop',
@@ -1387,6 +1552,20 @@ const _localizedValues = {
     'shopLoadFailed': 'Could not load products',
     'phone': 'Phone',
     'allCategories': 'All',
+    'addedToCart': 'Added!',
+    'material': 'Material',
+    'fitNote': 'Fit',
+    'invalidEmail': 'Invalid e-mail',
+    'requiredField': 'Required field',
+    'selectAtLeastOneCategory': 'Select at least one category.',
+    'categories': 'Categories',
+    'totalRegistered': 'Total registered',
+    'ridersInCategory': 'Riders in category',
+    'uciCode': 'UCI code',
+    'beginner': 'Beginner',
+    'rider': 'Rider',
+    'elite': 'Elite',
+    'bmxRider': 'BMX RIDER',
     'credit': 'Credit',
     'topUpCredit': 'Top up credit',
     'selectAmount': 'Select amount',
@@ -1399,6 +1578,8 @@ const _localizedValues = {
     'fromCamera': 'Camera',
     'fromGallery': 'Gallery',
     'photoChanged': 'Photo updated',
+    'cropPhoto': 'Crop photo',
+    'save': 'Save',
     'myRiderProfile': 'Rider profile',
     'creditRefunded': 'Credit refunded',
     'clubAffiliation': 'Club',
@@ -1446,5 +1627,51 @@ const _localizedValues = {
     'plateRequestSuccess': 'Request submitted',
     'plateRequestPendingApproval': 'Your request is pending admin approval.',
     'lookupFromFederation': 'Verify UCI ID in federation database',
+    'uciIdMustBe11Digits': 'UCI ID must be 11 digits',
+    'noFreePlates': 'No free plate numbers available.',
+    'submitError': 'Submission error.',
+    'noCategoryAvailable': 'No category available for this rider.',
+    'alreadyRegistered': 'Already registered',
+    'notAvailable': 'Not available',
+    'raceToday': 'Today',
+    'raceTomorrow': 'Tomorrow',
+    'daysUntilRace': 'days to race',
+    'daysUntilRaceShort': 'd',
+    'nextRace': 'Next race',
+    'genderMale': 'Male',
+    'genderFemale': 'Female',
+    'genderOther': 'Other',
+    'sharePhoto': 'Share photo',
+    'myOrders': 'My orders',
+    'noOrders': 'No orders',
+    'orderNumber': 'Order #',
+    'orderStatusLabel': 'Status',
+    'savedArticles': 'Saved articles',
+    'noSavedArticles': 'No saved articles',
+    'saveArticle': 'Save',
+    'unsaveArticle': 'Remove',
+    'shareProfile': 'Share rider profile',
+    'riderQrCode': 'Profile QR code',
+    'roleAdmin': 'Admin',
+    'roleRider': 'Rider',
+    'roleClubManager': 'Club manager',
+    'roleCommissar': 'Commissar',
+    'roleTrainer': 'Trainer',
+    'pointsAbbr': 'pts',
+    'addToCalendar': 'Add to calendar',
+    'downloadingPdf': 'Downloading PDF…',
+    'biometricLoginReason': 'Authenticate to sign in',
+    'biometricFailed': 'Biometric authentication failed',
+    'loginWithBiometrics': 'Sign in with biometrics',
+    'biometricUnlock': 'Biometric unlock',
+    'biometricUnlockDesc': 'Sign in with fingerprint or Face ID',
+    'fontSizeSettings': 'Text size',
+    'viewDetail': 'View detail',
+    'qrScanUciId': 'Scan UCI ID',
+    'qrScanHint': 'Point the camera at a rider\'s UCI ID QR code',
+    'scanQrCode': 'Scan QR code',
+    'eventsMap': 'BMX Tracks Map',
+    'noEventsWithLocation': 'No tracks with location',
+    'daysAbbr': 'd',
   },
 };

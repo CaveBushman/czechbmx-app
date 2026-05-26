@@ -319,7 +319,7 @@ class _PodiumStand extends StatelessWidget {
                 ),
           ),
           Text(
-            '${rider.points} b.',
+            '${rider.points} ${context.l10n.pointsAbbr}',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w800,

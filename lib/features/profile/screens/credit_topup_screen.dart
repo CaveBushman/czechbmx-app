@@ -127,7 +127,7 @@ class CreditTopUpScreen extends HookConsumerWidget {
               decoration: InputDecoration(
                 labelText: context.l10n.customAmount,
                 hintText: context.l10n.minimumAmount,
-                suffixText: 'Kč',
+                suffixText: context.l10n.czk,
                 filled: true,
                 fillColor: colors.surfaceVariant,
                 border: OutlineInputBorder(

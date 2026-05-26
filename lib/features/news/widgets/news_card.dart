@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:html/parser.dart' show parse;
 import 'package:intl/intl.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/news_model.dart';
+import '../providers/news_provider.dart';
 
 // Strips HTML tags and decodes entities from an HTML string.
 String _stripHtml(String html) {
@@ -123,12 +125,15 @@ class _FeaturedCard extends HookWidget {
   }
 }
 
-class _FeaturedCardContent extends StatelessWidget {
+class _FeaturedCardContent extends ConsumerWidget {
   final NewsModel news;
   const _FeaturedCardContent({required this.news});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isSaved = ref.watch(
+      savedArticlesProvider.select((s) => s.contains(news.id)),
+    );
     return Container(
       height: 300,
       decoration: BoxDecoration(
@@ -265,7 +270,7 @@ class _FeaturedCardContent extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  news.title,
+                  news.localizedTitle(context.l10n.languageCode),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.headlineLarge!.copyWith(
@@ -281,7 +286,26 @@ class _FeaturedCardContent extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                _MetaRow(news: news),
+                Row(
+                  children: [
+                    Expanded(child: _MetaRow(news: news, dark: true)),
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        ref
+                            .read(savedArticlesProvider.notifier)
+                            .toggle(news.id);
+                      },
+                      child: Icon(
+                        isSaved ? Icons.bookmark : Icons.bookmark_border,
+                        size: 22,
+                        color: isSaved
+                            ? AppColors.primary
+                            : Colors.white.withValues(alpha: 0.85),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -293,14 +317,17 @@ class _FeaturedCardContent extends StatelessWidget {
 
 // ── Standard card — vertical editorial layout ─────────────────────────────────
 
-class _StandardCard extends HookWidget {
+class _StandardCard extends HookConsumerWidget {
   final NewsModel news;
   const _StandardCard({required this.news});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final pressed = useState(false);
     final colors = context.colors;
+    final isSaved = ref.watch(
+      savedArticlesProvider.select((s) => s.contains(news.id)),
+    );
 
     return GestureDetector(
       onTap: () {
@@ -406,27 +433,55 @@ class _StandardCard extends HookWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      news.title,
+                      news.localizedTitle(context.l10n.languageCode),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleMedium!.copyWith(
                             height: 1.3,
                           ),
                     ),
-                    if (news.prefix != null && news.prefix!.isNotEmpty) ...[
-                      const SizedBox(height: 5),
-                      Text(
-                        _stripHtml(news.prefix!),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                              color: colors.textSecondary,
-                              height: 1.4,
-                            ),
-                      ),
-                    ],
+                    Builder(builder: (ctx) {
+                      final lp = news.localizedPrefix(ctx.l10n.languageCode);
+                      if (lp == null || lp.isEmpty) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 5),
+                        child: Text(
+                          _stripHtml(lp),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(ctx).textTheme.bodySmall!.copyWith(
+                            color: colors.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                      );
+                    }),
                     const SizedBox(height: 8),
-                    _MetaRow(news: news),
+                    Row(
+                      children: [
+                        Expanded(child: _MetaRow(news: news)),
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            ref
+                                .read(savedArticlesProvider.notifier)
+                                .toggle(news.id);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: Icon(
+                              isSaved
+                                  ? Icons.bookmark
+                                  : Icons.bookmark_border,
+                              size: 20,
+                              color: isSaved
+                                  ? AppColors.primary
+                                  : colors.textMuted,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -442,12 +497,16 @@ class _StandardCard extends HookWidget {
 
 class _MetaRow extends StatelessWidget {
   final NewsModel news;
-  const _MetaRow({required this.news});
+  final bool dark;
+  const _MetaRow({required this.news, this.dark = false});
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.bodySmall;
-    final iconColor = context.colors.textMuted;
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: dark ? Colors.white.withValues(alpha: 0.75) : null,
+        );
+    final iconColor =
+        dark ? Colors.white.withValues(alpha: 0.6) : context.colors.textMuted;
     final date = news.publishDate != null
         ? _formatDate(context, news.publishDate!)
         : null;

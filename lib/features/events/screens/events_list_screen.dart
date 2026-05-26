@@ -29,7 +29,14 @@ class EventsListScreen extends ConsumerWidget {
               floating: true,
               snap: true,
               title: Text(context.l10n.events),
-              actions: [_YearPicker(year: year, ref: ref)],
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.map_outlined),
+                  tooltip: context.l10n.eventsMap,
+                  onPressed: () => context.push('/events-map'),
+                ),
+                _YearPicker(year: year, ref: ref),
+              ],
             ),
             eventsAsync.when(
               loading: () => const SliverFillRemaining(
@@ -72,7 +79,7 @@ class _EventsCalendar extends HookConsumerWidget {
       final now = DateTime.now();
       for (final month in months) {
         for (final event in byMonth[month]!) {
-          if (event.date != null && !event.date!.isBefore(now)) {
+          if (event.raceStart != null && !event.raceStart!.isBefore(now)) {
             return (month: month, eventId: event.id);
           }
         }
@@ -174,15 +181,15 @@ class _MonthSection extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (isNext)
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 6),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
                       child: Row(
                         children: [
-                          _PulsingDot(),
-                          SizedBox(width: 6),
+                          const _PulsingDot(),
+                          const SizedBox(width: 6),
                           Text(
-                            'Příští závod',
-                            style: TextStyle(
+                            context.l10n.nextRace,
+                            style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                               color: AppColors.primary,

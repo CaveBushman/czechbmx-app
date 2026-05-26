@@ -16,8 +16,10 @@ class NewsListScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final newsAsync = ref.watch(newsListProvider);
+    final savedIds = ref.watch(savedArticlesProvider);
     final scrollController = useScrollController();
     final isSearching = useState(false);
+    final showSavedOnly = useState(false);
     final searchCtrl = useTextEditingController();
     final searchDebounce = useRef<Timer?>(null);
 
@@ -119,9 +121,37 @@ class NewsListScreen extends HookConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Text(
-                  context.l10n.news,
-                  style: Theme.of(context).textTheme.displayMedium,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        context.l10n.news,
+                        style: Theme.of(context).textTheme.displayMedium,
+                      ),
+                    ),
+                    if (savedIds.isNotEmpty)
+                      FilterChip(
+                        label: Text(context.l10n.savedArticles),
+                        selected: showSavedOnly.value,
+                        onSelected: (v) => showSavedOnly.value = v,
+                        selectedColor:
+                            AppColors.primary.withValues(alpha: 0.15),
+                        checkmarkColor: AppColors.primary,
+                        labelStyle: TextStyle(
+                          color: showSavedOnly.value
+                              ? AppColors.primary
+                              : context.colors.textSecondary,
+                          fontSize: 12,
+                        ),
+                        side: BorderSide(
+                          color: showSavedOnly.value
+                              ? AppColors.primary
+                              : context.colors.textMuted.withValues(alpha: 0.3),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -135,17 +165,25 @@ class NewsListScreen extends HookConsumerWidget {
                 ),
               ),
               data: (pageState) {
-                if (pageState.articles.isEmpty) {
+                final articles = showSavedOnly.value
+                    ? pageState.articles
+                        .where((a) => savedIds.contains(a.id))
+                        .toList()
+                    : pageState.articles;
+                if (articles.isEmpty) {
                   return SliverFillRemaining(
                     child: _EmptyView(
-                      isSearch: pageState.searchQuery != null,
+                      isSearch: pageState.searchQuery != null ||
+                          showSavedOnly.value,
                     ),
                   );
                 }
                 return _NewsList(
-                  articles: pageState.articles,
-                  isLoadingMore: pageState.isLoadingMore,
-                  hasMore: pageState.hasMore,
+                  articles: articles,
+                  isLoadingMore:
+                      showSavedOnly.value ? false : pageState.isLoadingMore,
+                  hasMore:
+                      showSavedOnly.value ? false : pageState.hasMore,
                 );
               },
             ),

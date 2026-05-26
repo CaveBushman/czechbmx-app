@@ -40,7 +40,7 @@ class _ProductBody extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final activeVariants =
-        product.variants.where((v) => v.inStock || true).toList();
+        product.variants.where((v) => v.inStock).toList();
     final selected = useState<ProductVariantModel?>(
       activeVariants.isNotEmpty ? activeVariants.first : null,
     );
@@ -216,12 +216,12 @@ class _ProductBody extends HookConsumerWidget {
                       product.material!.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     _InfoRow(
-                        label: 'Materiál', value: product.material!, colors: colors),
+                        label: context.l10n.material, value: product.material!, colors: colors),
                   ],
                   if (product.fitNote != null && product.fitNote!.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     _InfoRow(
-                        label: 'Střih', value: product.fitNote!, colors: colors),
+                        label: context.l10n.fitNote, value: product.fitNote!, colors: colors),
                   ],
                 ],
               ),
@@ -248,7 +248,7 @@ class _ProductBody extends HookConsumerWidget {
                   added.value ? Icons.check : Icons.shopping_cart_outlined),
               label: Text(
                 added.value
-                    ? 'Přidáno!'
+                    ? context.l10n.addedToCart
                     : selected.value == null
                         ? context.l10n.selectVariant
                         : !selected.value!.inStock

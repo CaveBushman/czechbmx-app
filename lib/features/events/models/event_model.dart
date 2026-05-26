@@ -119,9 +119,18 @@ class EventModel {
     return true;
   }
 
+  /// Race start = 09:00 on race day (training begins at 09:00).
+  DateTime? get raceStart => date != null
+      ? DateTime(date!.year, date!.month, date!.day, 9)
+      : null;
+
   bool get isPast {
-    if (date == null) return false;
-    return date!.isBefore(DateTime.now().subtract(const Duration(days: 1)));
+    if (raceStart == null) return false;
+    // doubleRace: show as active until end of second day
+    final cutoff = doubleRace
+        ? raceStart!.add(const Duration(hours: 24))
+        : raceStart!;
+    return cutoff.isBefore(DateTime.now());
   }
 
   String? get propositionUrl =>

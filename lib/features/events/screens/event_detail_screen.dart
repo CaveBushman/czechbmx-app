@@ -1,17 +1,21 @@
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart';
+
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:add_2_calendar/add_2_calendar.dart';
+import 'package:flutter/material.dart' hide Element;
 import 'package:share_plus/share_plus.dart';
+import '../../../core/services/pdf_cache_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/widgets/in_app_browser.dart';
 import '../../../core/widgets/splash_screen.dart';
 import 'foreign_entry_sheet.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../auth/auth_repository.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../entries/entries_repository.dart';
 import '../../entries/providers/entries_provider.dart';
@@ -70,6 +74,28 @@ class _EventDetailContent extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: -0.5),
           ),
           actions: [
+            if (event.raceStart != null && !event.isPast)
+              Builder(
+                builder: (ctx) => IconButton(
+                  icon: const Icon(Icons.calendar_today_outlined),
+                  tooltip: ctx.l10n.addToCalendar,
+                  onPressed: () {
+                    final start = event.raceStart!;
+                    final end = event.doubleRace
+                        ? start.add(const Duration(hours: 33))
+                        : start.add(const Duration(hours: 8));
+                    Add2Calendar.addEvent2Cal(
+                      Event(
+                        title: event.name,
+                        startDate: start,
+                        endDate: end,
+                        location: event.organizerName ?? '',
+                        description: 'czechbmx.cz/event/${event.id}',
+                      ),
+                    );
+                  },
+                ),
+              ),
             Builder(
               builder: (ctx) => IconButton(
                 icon: const Icon(Icons.share_outlined),
@@ -85,8 +111,12 @@ class _EventDetailContent extends StatelessWidget {
           sliver: SliverList(
             delegate: SliverChildListDelegate.fixed([
               _AnimatedEntry(index: 0, child: _StatusPanel(event: event)),
+              if (!event.canceled && !event.isPast) ...[
+                const SizedBox(height: 12),
+                _AnimatedEntry(index: 0, child: _RaceCountdown(raceDate: event.raceStart)),
+              ],
               const SizedBox(height: 24),
-              
+
               // Bento Grid pro hlavní info
               _AnimatedEntry(
                 index: 1,
@@ -209,13 +239,14 @@ class _EventHero extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Noise/Texture overlay simulation
           Positioned.fill(
-            child: Opacity(
-              opacity: 0.03,
-              child: Image.network(
-                'https://www.transparenttextures.com/patterns/carbon-fibre.png',
-                repeat: ImageRepeat.repeat,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.topLeft,
+                  radius: 2.0,
+                  colors: [Colors.white.withValues(alpha: 0.04), Colors.transparent],
+                ),
               ),
             ),
           ),
@@ -419,11 +450,13 @@ class _TechnicalGrid extends StatelessWidget {
       child: Stack(
         children: [
           Positioned.fill(
-            child: Opacity(
-              opacity: 0.05,
-              child: Image.network(
-                'https://www.transparenttextures.com/patterns/carbon-fibre.png',
-                repeat: ImageRepeat.repeat,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.topRight,
+                  radius: 1.8,
+                  colors: [Colors.white.withValues(alpha: 0.05), Colors.transparent],
+                ),
               ),
             ),
           ),
@@ -434,7 +467,7 @@ class _TechnicalGrid extends StatelessWidget {
           if (event.director != null)
             _InfoTile(icon: Icons.supervisor_account_outlined, label: context.l10n.raceDirector, value: event.director!),
           if (event.isUciRace || event.uciEventCode != null)
-            _InfoTile(icon: Icons.public_outlined, label: 'UCI CODE', value: event.uciEventCode ?? context.l10n.yes),
+            _InfoTile(icon: Icons.public_outlined, label: context.l10n.uciCode, value: event.uciEventCode ?? context.l10n.yes),
             ],
           ),
         ],
@@ -841,9 +874,9 @@ class _EventEntrySheetState extends ConsumerState<_EventEntrySheet> {
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const _EntrySheetScaffold(
-            title: 'Přihlášení na závod',
-            child: Center(
+          return _EntrySheetScaffold(
+            title: widget.event.name,
+            child: const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: CircularProgressIndicator(color: AppColors.primary),
@@ -853,7 +886,7 @@ class _EventEntrySheetState extends ConsumerState<_EventEntrySheet> {
         }
         if (snapshot.hasError) {
           return _EntrySheetScaffold(
-            title: 'Přihlášení na závod',
+            title: widget.event.name,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -887,10 +920,10 @@ class _EventEntrySheetState extends ConsumerState<_EventEntrySheet> {
 
         if (!info.registrationOpen || selectable.isEmpty) {
           return _EntrySheetScaffold(
-            title: 'Přihlášení na závod',
+            title: widget.event.name,
             child: Text(
               selectable.isEmpty
-                  ? 'Pro jezdce není dostupná žádná nová kategorie.'
+                  ? context.l10n.noCategoryAvailable
                   : context.l10n.registrationClosed,
               textAlign: TextAlign.center,
             ),
@@ -941,22 +974,19 @@ class _EventEntrySheetState extends ConsumerState<_EventEntrySheet> {
                           });
                         }
                       : null,
-                  title: Text(_entryOptionLabel(entry.key, option)),
+                  title: Text(_entryOptionLabel(context, entry.key, option)),
                   subtitle: Text(
                     option.alreadyRegistered
-                        ? 'Už přihlášeno'
+                        ? context.l10n.alreadyRegistered
                         : option.allowed
-                            ? '${option.fee} Kč'
-                            : 'Není dostupné',
+                            ? '${option.fee} ${context.l10n.czk}'
+                            : context.l10n.notAvailable,
                   ),
                   contentPadding: EdgeInsets.zero,
                 );
               }),
               const SizedBox(height: 12),
-              Text(
-                'Celkem: $totalFee Kč',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+              _CreditAndTotalRow(user: user, totalFee: totalFee),
               const SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: _selected.isEmpty || _submitting
@@ -996,7 +1026,7 @@ class _EventEntrySheetState extends ConsumerState<_EventEntrySheet> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Přihlášení proběhlo.')),
+          SnackBar(content: Text(context.l10n.entrySuccess)),
         );
       }
     } catch (e) {
@@ -1027,7 +1057,7 @@ class _EntryRiderHeader extends StatelessWidget {
     final name = riderName?.trim();
     if (name == null || name.isEmpty) {
       return Text(
-        'Jezdec UCI ID: $uciId',
+        '${context.l10n.rider} UCI ID: $uciId',
         style:
             Theme.of(context).textTheme.bodyMedium!.copyWith(color: textColor),
       );
@@ -1037,12 +1067,12 @@ class _EntryRiderHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Jezdec: $name',
+          '${context.l10n.rider}: $name',
           style: Theme.of(context).textTheme.titleSmall,
         ),
         const SizedBox(height: 2),
         Text(
-          'UCI ID: $uciId',
+          '${context.l10n.uciId}: $uciId',
           style: Theme.of(context)
               .textTheme
               .bodyMedium!
@@ -1097,13 +1127,120 @@ class _EntrySheetScaffold extends StatelessWidget {
   }
 }
 
-String _entryOptionLabel(String key, EventEntryOption option) {
+// ── Credit + total row in entry sheet ────────────────────────────────────────
+
+class _CreditAndTotalRow extends StatelessWidget {
+  final UserModel? user;
+  final int totalFee;
+  const _CreditAndTotalRow({required this.user, required this.totalFee});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final credit = user?.credit ?? 0;
+    final canAfford = credit >= totalFee;
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${context.l10n.total}: $totalFee ${context.l10n.czk}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              Text(
+                '${context.l10n.credit}: $credit ${context.l10n.czk}',
+                style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                  color: canAfford ? AppColors.success : AppColors.error,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (!canAfford)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.warning_amber_rounded, size: 14, color: AppColors.error),
+                const SizedBox(width: 4),
+                Text(
+                  context.l10n.topUpCredit,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.error),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ── Race countdown chip ────────────────────────────────────────────────────────
+
+class _RaceCountdown extends StatelessWidget {
+  final DateTime? raceDate;
+  const _RaceCountdown({required this.raceDate});
+
+  @override
+  Widget build(BuildContext context) {
+    if (raceDate == null) return const SizedBox.shrink();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final race = DateTime(raceDate!.year, raceDate!.month, raceDate!.day);
+    final diff = race.difference(today).inDays;
+    if (diff < 0) return const SizedBox.shrink();
+
+    final String label;
+    final Color color;
+    if (diff == 0) {
+      label = context.l10n.raceToday;
+      color = AppColors.success;
+    } else if (diff == 1) {
+      label = context.l10n.raceTomorrow;
+      color = AppColors.warning;
+    } else {
+      label = '$diff ${context.l10n.daysUntilRace}';
+      color = AppColors.primary;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.timer_outlined, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: color, letterSpacing: 0.4),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _entryOptionLabel(BuildContext context, String key, EventEntryOption option) {
   final className = option.className;
   final suffix = className == null || className.isEmpty ? '' : ' - $className';
   return switch (key) {
     'is_20' => '20"$suffix',
     'is_24' => '24"$suffix',
-    'is_beginner' => 'Začátečník$suffix',
+    'is_beginner' => '${context.l10n.beginner}$suffix',
     _ => key,
   };
 }
@@ -1417,22 +1554,49 @@ String _formatDateTime(BuildContext context, DateTime dateTime) {
 /// Currently we keep YouTube and Stripe checkout external, while other
 /// HTTP/HTTPS links are rendered inside the app browser.
 bool _isExternalBrowserLink(String url) {
-  final host = Uri.tryParse(url)?.host ?? '';
+  final uri = Uri.tryParse(url);
+  final host = uri?.host ?? '';
+  final path = uri?.path.toLowerCase() ?? '';
   return host.contains('youtube.com') ||
       host.contains('youtu.be') ||
-      host.contains('stripe.com');
+      host.contains('stripe.com') ||
+      path.endsWith('.pdf');
 }
 
 Future<void> _openUrl(String url,
     {BuildContext? context, String? title}) async {
+  final path = Uri.tryParse(url)?.path.toLowerCase() ?? '';
+  if (path.endsWith('.pdf') && context != null && context.mounted) {
+    final ctx = context;
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      SnackBar(
+        content: Text(ctx.l10n.downloadingPdf),
+        duration: const Duration(seconds: 60),
+      ),
+    );
+    await PdfCacheService.openPdf(
+      url,
+      onDone: () {
+        if (ctx.mounted) ScaffoldMessenger.of(ctx).hideCurrentSnackBar();
+      },
+      onError: (e) {
+        if (ctx.mounted) {
+          ScaffoldMessenger.of(ctx).hideCurrentSnackBar();
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(e.toString())),
+          );
+        }
+      },
+    );
+    return;
+  }
+
   final external = _isExternalBrowserLink(url);
   if (context != null && context.mounted && !external) {
-    // Open ordinary links in the app via WebView.
     openInApp(context, url, title: title);
     return;
   }
 
-  // YouTube, Stripe, and other external schemes are opened in the external browser.
   final uri = Uri.parse(url);
   if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
     await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
@@ -1612,6 +1776,7 @@ class _GalleryViewer extends StatefulWidget {
 class _GalleryViewerState extends State<_GalleryViewer> {
   late final PageController _pageController;
   late int _current;
+  double _dragOffset = 0;
 
   @override
   void initState() {
@@ -1626,73 +1791,108 @@ class _GalleryViewerState extends State<_GalleryViewer> {
     super.dispose();
   }
 
+  void _onVerticalDragUpdate(DragUpdateDetails d) {
+    setState(() => _dragOffset += d.delta.dy);
+  }
+
+  void _onVerticalDragEnd(DragEndDetails d) {
+    if (_dragOffset.abs() > 80 || d.velocity.pixelsPerSecond.dy.abs() > 400) {
+      Navigator.pop(context);
+    } else {
+      setState(() => _dragOffset = 0);
+    }
+  }
+
+  Future<void> _shareCurrentPhoto() async {
+    final url = widget.photos[_current].photoUrl;
+    await Share.share(url, subject: widget.photos[_current].caption);
+  }
+
   @override
   Widget build(BuildContext context) {
     final photo = widget.photos[_current];
+    final opacity = (1 - (_dragOffset.abs() / 300)).clamp(0.0, 1.0);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(color: Colors.black87),
-          ),
-          PageView.builder(
-            controller: _pageController,
-            itemCount: widget.photos.length,
-            onPageChanged: (i) => setState(() => _current = i),
-            itemBuilder: (_, index) {
-              return Center(
-                child: InteractiveViewer(
-                  child: CachedNetworkImage(
-                    imageUrl: widget.photos[index].photoUrl,
-                    fit: BoxFit.contain,
-                    placeholder: (_, __) => const Center(
-                      child:
-                          CircularProgressIndicator(color: AppColors.primary),
+      body: GestureDetector(
+        onVerticalDragUpdate: _onVerticalDragUpdate,
+        onVerticalDragEnd: _onVerticalDragEnd,
+        child: AnimatedContainer(
+          duration: _dragOffset == 0 ? const Duration(milliseconds: 200) : Duration.zero,
+          color: Colors.black.withValues(alpha: 0.87 * opacity),
+          child: Transform.translate(
+            offset: Offset(0, _dragOffset),
+            child: Stack(
+              children: [
+                PageView.builder(
+                  controller: _pageController,
+                  itemCount: widget.photos.length,
+                  onPageChanged: (i) => setState(() => _current = i),
+                  itemBuilder: (_, index) => Center(
+                    child: InteractiveViewer(
+                      child: CachedNetworkImage(
+                        imageUrl: widget.photos[index].photoUrl,
+                        fit: BoxFit.contain,
+                        placeholder: (_, __) => const Center(
+                          child: CircularProgressIndicator(color: AppColors.primary),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              );
-            },
-          ),
-          // Close button
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            right: 12,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 28),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          // Counter + caption
-          Positioned(
-            bottom: MediaQuery.of(context).padding.bottom + 16,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                if (photo.caption.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Text(
-                      photo.caption,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          shadows: [Shadow(blurRadius: 4)]),
-                    ),
+                // Top bar: close + share
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 4,
+                  left: 0,
+                  right: 0,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white, size: 26),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.share_outlined, color: Colors.white, size: 22),
+                        tooltip: context.l10n.sharePhoto,
+                        onPressed: _shareCurrentPhoto,
+                      ),
+                    ],
                   ),
-                const SizedBox(height: 8),
-                Text(
-                  '${_current + 1} / ${widget.photos.length}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                // Caption + counter
+                Positioned(
+                  bottom: MediaQuery.of(context).padding.bottom + 16,
+                  left: 0,
+                  right: 0,
+                  child: Column(
+                    children: [
+                      if (photo.caption.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            photo.caption,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              shadows: [Shadow(blurRadius: 4)],
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${_current + 1} / ${widget.photos.length}',
+                        style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

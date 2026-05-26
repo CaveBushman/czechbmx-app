@@ -6,6 +6,8 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/l10n/language_settings_tile.dart';
+import '../../../core/providers/font_scale_provider.dart';
+import '../../../core/services/biometric_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_settings_tile.dart';
 import '../../../core/widgets/avatar_crop_screen.dart';
@@ -13,6 +15,8 @@ import '../../auth/providers/auth_provider.dart';
 import '../../entries/models/entry_model.dart';
 import '../../riders/providers/rider_provider.dart';
 import '../../entries/providers/entries_provider.dart';
+import '../../shop/models/order_model.dart';
+import '../../shop/providers/shop_provider.dart';
 
 class ProfileScreen extends HookConsumerWidget {
   const ProfileScreen({super.key});
@@ -28,7 +32,8 @@ class ProfileScreen extends HookConsumerWidget {
     if (user == null) {
       return Scaffold(
         appBar: AppBar(title: Text(context.l10n.profile)),
-        body: Center(
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -54,17 +59,13 @@ class ProfileScreen extends HookConsumerWidget {
                 icon: const Icon(Icons.login),
                 label: Text(context.l10n.login),
               ),
-              const SizedBox(height: 40),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    LanguageSettingsTile(),
-                    SizedBox(height: 12),
-                    ThemeSettingsTile(),
-                  ],
-                ),
-              ),
+              const SizedBox(height: 32),
+              const LanguageSettingsTile(),
+              const SizedBox(height: 12),
+              const ThemeSettingsTile(),
+              const SizedBox(height: 12),
+              const _FontSizeTile(),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -187,7 +188,28 @@ class ProfileScreen extends HookConsumerWidget {
                         child: IconButton(
                           icon: const Icon(Icons.logout, color: Colors.white70),
                           tooltip: context.l10n.logout,
-                          onPressed: () => ref.read(authProvider.notifier).logout(),
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: Text(ctx.l10n.logout),
+                                content: Text(ctx.l10n.logoutConfirm),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: Text(ctx.l10n.cancel),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: Text(ctx.l10n.logout),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              await ref.read(authProvider.notifier).logout();
+                            }
+                          },
                         ),
                       ),
                     ),
@@ -282,11 +304,11 @@ class ProfileScreen extends HookConsumerWidget {
               child: Wrap(
                 spacing: 8,
                 children: [
-                  if (user.isAdmin) const _RoleBadge('Admin', AppColors.primary),
-                  if (user.isRider) const _RoleBadge('Jezdec', AppColors.success),
-                  if (user.isClubManager) const _RoleBadge('Manažer klubu', Colors.blue),
-                  if (user.isCommissar) const _RoleBadge('Komisař', Colors.purple),
-                  if (user.isTrainer) const _RoleBadge('Trenér', Colors.teal),
+                  if (user.isAdmin) _RoleBadge(context.l10n.roleAdmin, AppColors.primary),
+                  if (user.isRider) _RoleBadge(context.l10n.roleRider, AppColors.success),
+                  if (user.isClubManager) _RoleBadge(context.l10n.roleClubManager, Colors.blue),
+                  if (user.isCommissar) _RoleBadge(context.l10n.roleCommissar, Colors.purple),
+                  if (user.isTrainer) _RoleBadge(context.l10n.roleTrainer, Colors.teal),
                 ],
               ),
             ),
@@ -314,9 +336,19 @@ class ProfileScreen extends HookConsumerWidget {
                 const SizedBox(height: 24),
                 const _MyEntriesSection(),
                 const SizedBox(height: 24),
+                const _MyOrdersSection(),
+                const SizedBox(height: 24),
                 const LanguageSettingsTile(),
                 const SizedBox(height: 12),
                 const ThemeSettingsTile(),
+                const SizedBox(height: 12),
+                const _FontSizeTile(),
+                const SizedBox(height: 12),
+                const _BiometricTile(),
+                if (user.isCommissar || user.isAdmin) ...[
+                  const SizedBox(height: 12),
+                  _CommissarScanTile(),
+                ],
                 const SizedBox(height: 32),
               ],
             ),
@@ -502,7 +534,7 @@ class _EntryCard extends ConsumerWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          '${context.l10n.creditRefunded}: $newBalance Kč',
+                          '${context.l10n.creditRefunded}: $newBalance ${context.l10n.czk}',
                         ),
                       ),
                     );
@@ -603,7 +635,7 @@ class _CreditTile extends StatelessWidget {
                   Text(context.l10n.credit,
                       style: Theme.of(context).textTheme.bodySmall),
                   Text(
-                    '$credit Kč',
+                    '$credit ${context.l10n.czk}',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ],
@@ -755,6 +787,142 @@ class _PlateRequestTile extends StatelessWidget {
   }
 }
 
+// ── My Orders ─────────────────────────────────────────────────────────────────
+
+class _MyOrdersSection extends ConsumerWidget {
+  const _MyOrdersSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ordersAsync = ref.watch(myOrdersProvider);
+    final colors = context.colors;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(context.l10n.myOrders, style: Theme.of(context).textTheme.titleMedium),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.refresh, size: 18),
+              onPressed: () => ref.read(myOrdersProvider.notifier).refresh(),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ordersAsync.when(
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+          ),
+          error: (err, _) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Icon(Icons.error_outline, size: 16, color: colors.textMuted),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    err.toString(),
+                    style: Theme.of(context).textTheme.bodySmall!.copyWith(color: colors.textMuted),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => ref.read(myOrdersProvider.notifier).refresh(),
+                  child: Text(context.l10n.retry),
+                ),
+              ],
+            ),
+          ),
+          data: (orders) {
+            if (orders.isEmpty) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    context.l10n.noOrders,
+                    style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: colors.textMuted),
+                  ),
+                ),
+              );
+            }
+            return Column(children: orders.map((o) => _OrderCard(order: o)).toList());
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _OrderCard extends StatelessWidget {
+  final OrderModel order;
+  const _OrderCard({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final dateStr = order.createdAt != null
+        ? '${order.createdAt!.day}. ${order.createdAt!.month}. ${order.createdAt!.year}'
+        : '';
+    final totalStr = '${order.total.toStringAsFixed(0)} ${context.l10n.czk}';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.border.withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.shopping_bag_outlined, size: 20, color: AppColors.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${context.l10n.orderNumber}${order.id}',
+                  style: Theme.of(context).textTheme.titleSmall!.copyWith(fontWeight: FontWeight.w700),
+                ),
+                if (dateStr.isNotEmpty)
+                  Text(dateStr, style: Theme.of(context).textTheme.bodySmall!.copyWith(color: colors.textMuted)),
+                if (order.status.isNotEmpty)
+                  Text(
+                    order.status,
+                    style: Theme.of(context).textTheme.bodySmall!.copyWith(color: colors.textSecondary),
+                  ),
+              ],
+            ),
+          ),
+          Text(
+            totalStr,
+            style: Theme.of(context).textTheme.titleSmall!.copyWith(
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RoleBadge extends StatelessWidget {
   final String label;
   final Color color;
@@ -773,6 +941,162 @@ class _RoleBadge extends StatelessWidget {
         fontSize: 10,
       ),
       side: BorderSide(color: color.withValues(alpha: 0.4)),
+    );
+  }
+}
+
+class _FontSizeTile extends ConsumerWidget {
+  const _FontSizeTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scale = ref.watch(fontScaleProvider).valueOrNull ?? kFontScaleDefault;
+    final colors = context.colors;
+    final pct = (scale * 100).round();
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.format_size, color: colors.textMuted, size: 20),
+              const SizedBox(width: 12),
+              Text(
+                context.l10n.fontSizeSettings,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const Spacer(),
+              Text(
+                '$pct%',
+                style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                      color: colors.textMuted,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              const Text('A', style: TextStyle(fontSize: 12)),
+              Expanded(
+                child: Slider(
+                  value: scale,
+                  min: kFontScaleMin,
+                  max: kFontScaleMax,
+                  divisions:
+                      ((kFontScaleMax - kFontScaleMin) / kFontScaleStep).round(),
+                  activeColor: AppColors.primary,
+                  onChanged: (v) =>
+                      ref.read(fontScaleProvider.notifier).setScale(v),
+                ),
+              ),
+              const Text('A', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BiometricTile extends StatefulWidget {
+  const _BiometricTile();
+
+  @override
+  State<_BiometricTile> createState() => _BiometricTileState();
+}
+
+class _BiometricTileState extends State<_BiometricTile> {
+  bool _available = false;
+  bool _enabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final available = await BiometricService.isAvailable();
+    final enabled = await BiometricService.isEnabled();
+    if (mounted) setState(() { _available = available; _enabled = enabled; });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_available) return const SizedBox.shrink();
+    final colors = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.fingerprint, color: colors.textMuted, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(context.l10n.biometricUnlock,
+                    style: Theme.of(context).textTheme.titleSmall),
+                Text(context.l10n.biometricUnlockDesc,
+                    style: Theme.of(context).textTheme.bodySmall!
+                        .copyWith(color: colors.textMuted)),
+              ],
+            ),
+          ),
+          Switch(
+            value: _enabled,
+            activeColor: AppColors.primary,
+            onChanged: (val) async {
+              await BiometricService.setEnabled(val);
+              setState(() => _enabled = val);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommissarScanTile extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return GestureDetector(
+      onTap: () => context.push('/commissar/scan'),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.qr_code_scanner, color: AppColors.primary, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                context.l10n.scanQrCode,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+            Icon(Icons.chevron_right, color: colors.textMuted, size: 20),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../../../core/services/biometric_service.dart';
 import '../auth_repository.dart';
 
 // Auth state: null = loading, UserModel = logged in, _LoggedOut = logged out
@@ -75,6 +76,21 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
           lastName: lastName,
           password: password,
         );
+  }
+
+  /// Prompt for biometrics then restore the stored session.
+  /// Returns true if authentication succeeded.
+  Future<bool> loginWithBiometrics(String localizedReason) async {
+    final ok = await BiometricService.authenticate(localizedReason);
+    if (!ok) return false;
+    state = const AsyncData(AuthLoading());
+    final user = await ref.read(authRepositoryProvider).restoreSession();
+    if (user != null) {
+      state = AsyncData(AuthAuthenticated(user));
+      return true;
+    }
+    state = const AsyncData(AuthUnauthenticated());
+    return false;
   }
 
   Future<void> refreshUser() async {

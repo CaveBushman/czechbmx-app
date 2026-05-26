@@ -1,6 +1,42 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/news_model.dart';
 import '../news_repository.dart';
+
+// ── News bookmarks (persisted in SharedPreferences) ───────────────────────────
+
+final savedArticlesProvider =
+    NotifierProvider<SavedArticlesNotifier, Set<int>>(SavedArticlesNotifier.new);
+
+class SavedArticlesNotifier extends Notifier<Set<int>> {
+  static const _key = 'saved_article_ids';
+
+  @override
+  Set<int> build() {
+    _load();
+    return {};
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ids = prefs.getStringList(_key) ?? [];
+    state = ids.map(int.parse).toSet();
+  }
+
+  Future<void> toggle(int articleId) async {
+    final next = Set<int>.from(state);
+    if (next.contains(articleId)) {
+      next.remove(articleId);
+    } else {
+      next.add(articleId);
+    }
+    state = next;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_key, next.map((e) => e.toString()).toList());
+  }
+
+  bool isSaved(int articleId) => state.contains(articleId);
+}
 
 class NewsPageState {
   final List<NewsModel> articles;

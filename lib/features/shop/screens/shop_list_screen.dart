@@ -210,6 +210,8 @@ class _ProductCard extends HookConsumerWidget {
     final colors = context.colors;
     final pressed = useState(false);
 
+    final isOos = !product.inStock;
+
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
@@ -222,6 +224,8 @@ class _ProductCard extends HookConsumerWidget {
         scale: pressed.value ? 0.95 : 1.0,
         duration: const Duration(milliseconds: 120),
         curve: Curves.easeOut,
+        child: Opacity(
+        opacity: isOos ? 0.55 : 1.0,
         child: Container(
         decoration: BoxDecoration(
           color: colors.card,
@@ -305,6 +309,7 @@ class _ProductCard extends HookConsumerWidget {
           ],
         ),
       ),
+      ),  // Opacity
       ),  // AnimatedScale
     );
   }

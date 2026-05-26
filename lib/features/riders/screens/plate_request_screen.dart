@@ -11,6 +11,11 @@ import '../../../core/l10n/app_localizations.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/theme/app_colors.dart';
 
+// API values are fixed Czech strings required by the backend
+const _genderMale = 'Muž';
+const _genderFemale = 'Žena';
+const _genderOther = 'Ostatní';
+
 class PlateRequestScreen extends ConsumerStatefulWidget {
   const PlateRequestScreen({super.key});
 
@@ -24,6 +29,7 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
   final _uciController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
+  final _dobController = TextEditingController();
   final _emergencyContactController = TextEditingController();
   final _emergencyPhoneController = TextEditingController();
 
@@ -65,6 +71,7 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
     _uciController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
+    _dobController.dispose();
     _emergencyContactController.dispose();
     _emergencyPhoneController.dispose();
     super.dispose();
@@ -140,6 +147,7 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
       _lastNameController.text = d['last_name'] as String? ?? '';
       if (d['date_of_birth'] != null) {
         _dateOfBirth = DateTime.tryParse(d['date_of_birth'] as String);
+        if (_dateOfBirth != null) _dobController.text = DateFormat('d. M. yyyy').format(_dateOfBirth!);
       }
       _gender = d['gender'] as String? ?? 'Muž';
       setState(() => _lookupStatus = 'found');
@@ -169,17 +177,22 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
       firstDate: DateTime(1940),
       lastDate: DateTime(now.year - 3),
     );
-    if (picked != null) setState(() => _dateOfBirth = picked);
+    if (picked != null) {
+      setState(() => _dateOfBirth = picked);
+      _dobController.text = DateFormat('d. M. yyyy').format(picked);
+    }
   }
 
   // ── Submit ────────────────────────────────────────────────────────────────────
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+
     if (_dateOfBirth == null) {
       _showError(context.l10n.fillAllFields);
       return;
     }
+
     if (!_is20 && !_is24) {
       _showError(context.l10n.bikeCategories);
       return;
@@ -195,7 +208,7 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
 
     setState(() => _submitting = true);
     try {
-      final dio = DioClient.create();
+      final dio = ref.read(dioProvider);
       await dio.post(ApiConstants.plateRequest, data: {
         'uci_id': _uciController.text.trim(),
         'first_name': _firstNameController.text.trim(),
@@ -214,7 +227,7 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
     } on DioException catch (e) {
       if (!mounted) return;
       final msg = (e.response?.data as Map<String, dynamic>?)?['error'] as String?;
-      _showError(msg ?? e.message ?? 'Chyba při odesílání.');
+      _showError(msg ?? e.message ?? context.l10n.submitError);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -234,191 +247,224 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.requestPlateNumber)),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
-          children: [
-            // Intro
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
-              ),
-              child: Text(
-                context.l10n.plateRequestIntro,
-                style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: colors.textSecondary),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // ── UCI ID ──────────────────────────────────────────────────────
-            _SectionLabel(context.l10n.uciId),
-            TextFormField(
-              controller: _uciController,
-              decoration: InputDecoration(
-                hintText: '10012345678',
-                suffixIcon: _lookupStatus == 'loading'
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                        ),
-                      )
-                    : _lookupStatus == 'found'
-                        ? const Icon(Icons.check_circle_outline, color: AppColors.success)
-                        : null,
-              ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(11)],
-              validator: (v) => (v == null || v.trim().length != 11) ? 'UCI ID musí mít 11 číslic' : null,
-            ),
-            if (_lookupStatus == 'found')
-              _Banner(icon: Icons.check_circle_outline, color: AppColors.success, text: context.l10n.riderFound),
-            if (_lookupStatus == 'not_found')
-              _Banner(icon: Icons.info_outline, color: colors.textMuted, text: context.l10n.riderNotFound),
-            if (_lookupStatus == 'error' && _lookupError != null)
-              _Banner(icon: Icons.error_outline, color: AppColors.error, text: _lookupError!),
-            const SizedBox(height: 20),
-
-            // ── Name ────────────────────────────────────────────────────────
-            _SectionLabel('${context.l10n.firstName} / ${context.l10n.lastName}'),
-            Row(children: [
-              Expanded(child: _Field(controller: _firstNameController, label: context.l10n.firstName, required: true)),
-              const SizedBox(width: 10),
-              Expanded(child: _Field(controller: _lastNameController, label: context.l10n.lastName, required: true)),
-            ]),
-            const SizedBox(height: 16),
-
-            // ── DOB + gender ─────────────────────────────────────────────────
-            Row(children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: _pickDate,
-                  child: AbsorbPointer(
-                    child: TextFormField(
-                      decoration: InputDecoration(
-                        labelText: context.l10n.dateOfBirth,
-                        suffixIcon: const Icon(Icons.calendar_today, size: 18),
-                      ),
-                      controller: TextEditingController(
-                        text: _dateOfBirth != null ? DateFormat('d. M. yyyy').format(_dateOfBirth!) : '',
-                      ),
-                      validator: (_) => _dateOfBirth == null ? context.l10n.fillAllFields : null,
+      body: Column(
+        children: [
+          Expanded(
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+                children: [
+                  // Intro
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                    ),
+                    child: Text(
+                      context.l10n.plateRequestIntro,
+                      style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: colors.textSecondary),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _gender,
-                  decoration: InputDecoration(labelText: context.l10n.gender),
-                  items: const [
-                    DropdownMenuItem(value: 'Muž', child: Text('Muž')),
-                    DropdownMenuItem(value: 'Žena', child: Text('Žena')),
-                    DropdownMenuItem(value: 'Ostatní', child: Text('Ostatní')),
-                  ],
-                  onChanged: (v) { if (v != null) setState(() => _gender = v); },
-                ),
-              ),
-            ]),
-            const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
-            // ── Bike categories ───────────────────────────────────────────────
-            _SectionLabel(context.l10n.bikeCategories),
-            CheckboxListTile(
-              value: _is20 && !_isElite,
-              contentPadding: EdgeInsets.zero,
-              title: Text(context.l10n.challenge),
-              onChanged: (v) => setState(() { _is20 = v ?? false; _isElite = false; }),
-            ),
-            CheckboxListTile(
-              value: _is20 && _isElite,
-              contentPadding: EdgeInsets.zero,
-              title: Text(context.l10n.championship),
-              onChanged: (v) => setState(() { _is20 = v ?? false; _isElite = v ?? false; }),
-            ),
-            CheckboxListTile(
-              value: _is24,
-              contentPadding: EdgeInsets.zero,
-              title: Text(context.l10n.cruiser),
-              onChanged: (v) => setState(() => _is24 = v ?? false),
-            ),
-            const SizedBox(height: 20),
-
-            // ── Club ──────────────────────────────────────────────────────────
-            _SectionLabel(context.l10n.selectClub),
-            _loadingClubs
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                : DropdownButtonFormField<int>(
-                    value: _selectedClubId,
-                    decoration: InputDecoration(hintText: context.l10n.selectClub),
-                    isExpanded: true,
-                    items: _clubs.map((c) {
-                      return DropdownMenuItem<int>(
-                        value: c['id'] as int,
-                        child: Text(c['team_name'] as String? ?? ''),
-                      );
-                    }).toList(),
-                    onChanged: (v) => setState(() {
-                      _selectedClubId = v;
-                      _selectedClubName = _clubs.firstWhere((c) => c['id'] == v)['team_name'] as String?;
-                    }),
-                    validator: (v) => v == null ? context.l10n.fillAllFields : null,
-                  ),
-            const SizedBox(height: 20),
-
-            // ── Plate number ──────────────────────────────────────────────────
-            _SectionLabel(context.l10n.selectPlate),
-            _loadingPlates
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                : _freePlates.isEmpty
-                    ? Text('Žádná volná čísla.', style: TextStyle(color: colors.textMuted))
-                    : DropdownButtonFormField<String>(
-                        value: _selectedPlate,
-                        decoration: InputDecoration(hintText: context.l10n.plateNumber),
-                        isExpanded: true,
-                        items: _freePlates.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
-                        onChanged: (v) => setState(() => _selectedPlate = v),
-                        validator: (v) => v == null ? context.l10n.fillAllFields : null,
+                  // ── Section: Identification ──
+                  _FormSection(
+                    title: context.l10n.uciId,
+                    children: [
+                      TextFormField(
+                        controller: _uciController,
+                        decoration: InputDecoration(
+                          hintText: '10012345678',
+                          prefixIcon: const Icon(Icons.fingerprint, size: 20),
+                          suffixIcon: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 250),
+                            child: _lookupStatus == 'loading'
+                                ? const Padding(
+                                    key: ValueKey('loading_spinner'),
+                                    padding: EdgeInsets.all(12),
+                                    child: SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                                    ),
+                                  )
+                                : const SizedBox.shrink(key: ValueKey('empty_suffix')),
+                          ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(11)],
+                        validator: (v) => (v == null || v.trim().length != 11) ? context.l10n.uciIdMustBe11Digits : null,
                       ),
-            const SizedBox(height: 20),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 400),
+                        transitionBuilder: (Widget child, Animation<double> animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SizeTransition(sizeFactor: animation, axisAlignment: -1, child: child),
+                          );
+                        },
+                        child: (_lookupStatus != null && _lookupStatus != 'loading')
+                            ? Padding(
+                                key: ValueKey('banner_${_lookupStatus}_${_lookupError ?? ''}'),
+                                padding: const EdgeInsets.only(top: 12),
+                                child: _StatusBanner(
+                                  status: _lookupStatus!,
+                                  error: _lookupError,
+                                  textFound: context.l10n.riderFound,
+                                  textNotFound: context.l10n.riderNotFound,
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
 
-            // ── Emergency contact ─────────────────────────────────────────────
-            _SectionLabel('${context.l10n.emergencyContact} / ${context.l10n.emergencyPhone}'),
-            Row(children: [
-              Expanded(child: _Field(controller: _emergencyContactController, label: context.l10n.emergencyContact, required: true)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _Field(
-                  controller: _emergencyPhoneController,
-                  label: context.l10n.emergencyPhone,
-                  required: true,
-                  keyboardType: TextInputType.phone,
-                ),
-              ),
-            ]),
-            const SizedBox(height: 32),
+                  _FormSection(
+                    title: '${context.l10n.firstName} / ${context.l10n.lastName}',
+                    children: [
+                      Row(children: [
+                        Expanded(child: _Field(controller: _firstNameController, label: context.l10n.firstName, required: true)),
+                        const SizedBox(width: 10),
+                        Expanded(child: _Field(controller: _lastNameController, label: context.l10n.lastName, required: true)),
+                      ]),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        readOnly: true,
+                        onTap: _pickDate,
+                        decoration: InputDecoration(
+                          labelText: context.l10n.dateOfBirth,
+                          suffixIcon: const Icon(Icons.calendar_today, size: 18),
+                          filled: true,
+                          fillColor: Theme.of(context).dividerColor.withValues(alpha: 0.02),
+                        ),
+                        controller: _dobController,
+                        validator: (_) => _dateOfBirth == null ? context.l10n.fillAllFields : null,
+                      ),
+                      const SizedBox(height: 16),
+                      _SectionLabel(context.l10n.gender),
+                      SizedBox(
+                        width: double.infinity,
+                        child: SegmentedButton<String>(
+                          segments: [
+                            ButtonSegment(value: _genderMale, label: Text(context.l10n.genderMale)),
+                            ButtonSegment(value: _genderFemale, label: Text(context.l10n.genderFemale)),
+                            ButtonSegment(value: _genderOther, label: Text(context.l10n.genderOther)),
+                          ],
+                          selected: {_gender},
+                          onSelectionChanged: (val) => setState(() => _gender = val.first),
+                          showSelectedIcon: false,
+                        ),
+                      ),
+                    ],
+                  ),
 
-            // ── Submit ────────────────────────────────────────────────────────
-            FilledButton.icon(
-              onPressed: _submitting ? null : _submit,
-              icon: _submitting
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.send_outlined),
-              label: Text(context.l10n.requestPlateNumber),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  // ── Section: Bike categories ──
+                  _FormSection(
+                    title: context.l10n.bikeCategories,
+                    children: [
+                      CheckboxListTile(
+                        value: _is20 && !_isElite,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(context.l10n.challenge),
+                        onChanged: (v) => setState(() { _is20 = v ?? false; _isElite = false; }),
+                      ),
+                      CheckboxListTile(
+                        value: _is20 && _isElite,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(context.l10n.championship),
+                        onChanged: (v) => setState(() { _is20 = v ?? false; _isElite = v ?? false; }),
+                      ),
+                      CheckboxListTile(
+                        value: _is24,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(context.l10n.cruiser),
+                        onChanged: (v) => setState(() => _is24 = v ?? false),
+                      ),
+                    ],
+                  ),
+
+                  // ── Section: Selections ──
+                  _FormSection(
+                    title: '${context.l10n.selectClub} & ${context.l10n.selectPlate}',
+                    children: [
+                      if (_loadingClubs)
+                        const _SkeletonLoader()
+                      else
+                        DropdownButtonFormField<int>(
+                          value: _selectedClubId,
+                          decoration: InputDecoration(labelText: context.l10n.selectClub),
+                          isExpanded: true,
+                          items: _clubs.map((c) => DropdownMenuItem<int>(value: c['id'] as int, child: Text(c['team_name'] as String? ?? ''))).toList(),
+                          onChanged: (v) => setState(() {
+                            _selectedClubId = v;
+                            _selectedClubName = _clubs.firstWhere((c) => c['id'] == v)['team_name'] as String?;
+                          }),
+                          validator: (v) => v == null ? context.l10n.fillAllFields : null,
+                        ),
+                      const SizedBox(height: 16),
+                      if (_loadingPlates)
+                        const _SkeletonLoader()
+                      else
+                        _freePlates.isEmpty
+                            ? Text(context.l10n.noFreePlates, style: TextStyle(color: colors.textMuted))
+                            : DropdownButtonFormField<String>(
+                                  value: _selectedPlate,
+                                  decoration: InputDecoration(labelText: context.l10n.plateNumber),
+                                  isExpanded: true,
+                                  items: _freePlates.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+                                  onChanged: (v) => setState(() => _selectedPlate = v),
+                                  validator: (v) => v == null ? context.l10n.fillAllFields : null,
+                                ),
+                    ],
+                  ),
+
+                  // ── Section: Emergency ──
+                  _FormSection(
+                    title: '${context.l10n.emergencyContact} / ${context.l10n.emergencyPhone}',
+                    children: [
+                      _Field(controller: _emergencyContactController, label: context.l10n.emergencyContact, required: true),
+                      const SizedBox(height: 16),
+                      _Field(
+                        controller: _emergencyPhoneController,
+                        label: context.l10n.emergencyPhone,
+                        required: true,
+                        keyboardType: TextInputType.phone,
+                        validator: (v) => (v == null || v.trim().length < 9) ? context.l10n.phone : null,
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          // Sticky Submit Button
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5)),
+              ],
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _submitting ? null : _submit,
+                icon: _submitting
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.send_outlined),
+                label: Text(context.l10n.requestPlateNumber),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -475,6 +521,39 @@ class _SuccessView extends StatelessWidget {
 
 // ── Helper widgets ────────────────────────────────────────────────────────────
 
+class _FormSection extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+  const _FormSection({required this.title, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionLabel(title),
+        Container(
+          margin: const EdgeInsets.only(bottom: 24),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.05)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+        ),
+      ],
+    );
+  }
+}
+
 class _SectionLabel extends StatelessWidget {
   final String text;
   const _SectionLabel(this.text);
@@ -496,20 +575,46 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-class _Banner extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String text;
-  const _Banner({required this.icon, required this.color, required this.text});
+class _StatusBanner extends StatelessWidget {
+  final String status;
+  final String? error;
+  final String textFound;
+  final String textNotFound;
+
+  const _StatusBanner({
+    required this.status,
+    this.error,
+    required this.textFound,
+    required this.textNotFound,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
+    final color = status == 'found'
+        ? AppColors.success
+        : status == 'not_found'
+            ? context.colors.textMuted
+            : AppColors.error;
+
+    final icon = status == 'found'
+        ? Icons.check_circle
+        : status == 'not_found'
+            ? Icons.info
+            : Icons.error;
+
+    final text = status == 'found' ? textFound : status == 'not_found' ? textNotFound : (error ?? 'Error');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
       child: Row(children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 6),
-        Expanded(child: Text(text, style: Theme.of(context).textTheme.bodySmall!.copyWith(color: color))),
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 10),
+        Expanded(child: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13))),
       ]),
     );
   }
@@ -520,23 +625,55 @@ class _Field extends StatelessWidget {
   final String label;
   final bool required;
   final TextInputType? keyboardType;
+  final String? Function(String?)? validator;
 
   const _Field({
     required this.controller,
     required this.label,
     this.required = false,
     this.keyboardType,
+    this.validator,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: Theme.of(context).dividerColor.withValues(alpha: 0.02),
+      ),
       keyboardType: keyboardType,
-      validator: required
+      validator: validator ?? (required
           ? (v) => (v == null || v.trim().isEmpty) ? context.l10n.fillAllFields : null
-          : null,
+          : null),
+    );
+  }
+}
+
+class _SkeletonLoader extends StatelessWidget {
+  const _SkeletonLoader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 56,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Theme.of(context).dividerColor.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.primary,
+          ),
+        ),
+      ),
     );
   }
 }

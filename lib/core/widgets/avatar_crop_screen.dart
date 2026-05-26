@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
 
 class AvatarCropScreen extends StatefulWidget {
@@ -43,7 +44,7 @@ class _AvatarCropScreenState extends State<AvatarCropScreen> {
     final image = _image;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Výřez fotky'),
+        title: Text(context.l10n.cropPhoto),
         actions: [
           TextButton(
             onPressed: image == null || _saving ? null : _save,
@@ -53,7 +54,7 @@ class _AvatarCropScreenState extends State<AvatarCropScreen> {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Uložit'),
+                : Text(context.l10n.save),
           ),
         ],
       ),

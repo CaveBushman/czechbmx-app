@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Czech BMX</string>
+    <string name="next_race_widget_description">Odpočet do příštího závodu Czech BMX</string>
 </resources>

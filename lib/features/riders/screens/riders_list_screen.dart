@@ -243,7 +243,7 @@ class _FilterBar extends StatelessWidget {
                 },
               ),
               _Chip(
-                label: 'Elite',
+                label: context.l10n.elite,
                 selected: eliteOnly.value,
                 onTap: () {
                   eliteOnly.value = !eliteOnly.value;
@@ -440,7 +440,7 @@ class _RiderTile extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        displayCategory.isEmpty ? 'BMX RIDER' : displayCategory.toUpperCase(),
+                        displayCategory.isEmpty ? context.l10n.bmxRider : displayCategory.toUpperCase(),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: accentColor,
                           fontWeight: FontWeight.w800,
@@ -532,8 +532,7 @@ class _ErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isAuth = error is ApiException &&
-        ((error as ApiException).statusCode == 401 ||
-            (error as ApiException).message.contains('přihlásit'));
+        (error as ApiException).statusCode == 401;
     final message = error.toString();
 
     return Center(

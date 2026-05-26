@@ -14,6 +14,8 @@ import '../../features/onboarding/screens/onboarding_screen.dart';
 import '../../features/rankings/screens/rankings_screen.dart';
 import '../../features/riders/screens/rider_detail_screen.dart';
 import '../../features/riders/screens/riders_list_screen.dart';
+import '../../features/commissar/screens/qr_scanner_screen.dart';
+import '../../features/events/screens/events_map_screen.dart';
 import '../../features/profile/screens/credit_topup_screen.dart';
 import '../../features/search/screens/search_screen.dart';
 import '../../features/shop/screens/cart_screen.dart';
@@ -23,6 +25,9 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/riders/screens/plate_request_screen.dart';
+import '../../features/shop/providers/cart_provider.dart';
+
+final appNavigatorKey = GlobalKey<NavigatorState>();
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authNotifier = ValueNotifier<AuthState?>(null);
@@ -43,6 +48,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 
   return GoRouter(
+    navigatorKey: appNavigatorKey,
     initialLocation: '/news',
     refreshListenable: Listenable.merge([authNotifier, onboardingNotifier]),
     redirect: (context, state) {
@@ -50,10 +56,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       // Map web-style /event/{id} → app route /events/{id}
       if (loc.startsWith('/event/') && !loc.startsWith('/events/')) {
-        return loc.replaceFirst('/event/', '/events/');
+        return '/events/${loc.substring('/event/'.length)}';
       }
-      // Map custom scheme paths: czechbmx://news/{slug} → /news/{slug}
-      // (GoRouter strips scheme, path arrives as-is)
+      // Map web-style /jezdci/{uciId} → app route /riders/{uciId}
+      if (loc.startsWith('/jezdci/')) {
+        return '/riders/${loc.substring('/jezdci/'.length)}';
+      }
 
       // Onboarding: wait until state is known
       final onboarded = onboardingNotifier.value;
@@ -93,6 +101,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _slideTransition(
           key: state.pageKey,
           child: const SearchScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/commissar/scan',
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const QrScannerScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/events-map',
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: const EventsMapScreen(),
         ),
       ),
       ShellRoute(
@@ -281,7 +303,7 @@ CustomTransitionPage<void> _fadeTransition({
 
 // ── Shell (bottom nav) ────────────────────────────────────────────────────────
 
-class _MainShell extends StatelessWidget {
+class _MainShell extends ConsumerWidget {
   final Widget child;
 
   const _MainShell({required this.child});
@@ -296,9 +318,10 @@ class _MainShell extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).matchedLocation;
     final currentIndex = _tabs.indexWhere((t) => location.startsWith(t));
+    final cartCount = ref.watch(cartProvider.notifier).itemCount;
 
     return Scaffold(
       body: AnimatedSwitcher(
@@ -314,15 +337,18 @@ class _MainShell extends StatelessWidget {
           child: child,
         ),
       ),
-      floatingActionButton: FloatingActionButton.small(
-        heroTag: 'search_fab',
-        backgroundColor: context.colors.card,
-        foregroundColor: context.colors.textPrimary,
-        elevation: 2,
-        onPressed: () => context.push('/search'),
-        tooltip: context.l10n.search,
-        child: const Icon(Icons.search_rounded, size: 22),
-      ),
+      // Hide search FAB on News tab — that screen has its own AppBar search.
+      floatingActionButton: currentIndex == 0
+          ? null
+          : FloatingActionButton.small(
+              heroTag: 'search_fab',
+              backgroundColor: context.colors.card,
+              foregroundColor: context.colors.textPrimary,
+              elevation: 2,
+              onPressed: () => context.push('/search'),
+              tooltip: context.l10n.search,
+              child: const Icon(Icons.search_rounded, size: 22),
+            ),
       bottomNavigationBar: NavigationBar(
         backgroundColor: context.colors.surface,
         indicatorColor: AppColors.primary.withValues(alpha: 0.18),
@@ -354,9 +380,18 @@ class _MainShell extends StatelessWidget {
             label: context.l10n.rankings,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.shopping_bag_outlined),
-            selectedIcon:
-                const Icon(Icons.shopping_bag, color: AppColors.primary),
+            icon: Badge(
+              isLabelVisible: cartCount > 0,
+              label: Text('$cartCount'),
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.shopping_bag_outlined),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: cartCount > 0,
+              label: Text('$cartCount'),
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.shopping_bag, color: AppColors.primary),
+            ),
             label: context.l10n.shop,
           ),
           NavigationDestination(

@@ -29,9 +29,34 @@ class NewsDetailScreen extends HookConsumerWidget {
       error: (err, _) => Scaffold(
         appBar: AppBar(),
         body: Center(
-          child: Text(
-            err.toString(),
-            style: Theme.of(context).textTheme.bodyMedium,
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.wifi_off_rounded,
+                    size: 64, color: context.colors.textMuted),
+                const SizedBox(height: 16),
+                Text(
+                  context.l10n.newsLoadFailed,
+                  style: Theme.of(context).textTheme.headlineMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  err.toString(),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () =>
+                      ref.invalidate(newsDetailProvider(slug)),
+                  icon: const Icon(Icons.refresh),
+                  label: Text(context.l10n.retry),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -59,8 +84,12 @@ class _NewsDetailBody extends HookConsumerWidget {
     }, [scrollController]);
 
     return Scaffold(
-      body: CustomScrollView(
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () async => ref.invalidate(newsDetailProvider(news.slug ?? news.id.toString())),
+        child: CustomScrollView(
         controller: scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverAppBar(
             expandedHeight: 280,
@@ -69,7 +98,7 @@ class _NewsDetailBody extends HookConsumerWidget {
               opacity: showTitle.value ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 200),
               child: Text(
-                news.title,
+                news.localizedTitle(localeCode),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -114,7 +143,7 @@ class _NewsDetailBody extends HookConsumerWidget {
                   _MetaRow(news: news),
                   const SizedBox(height: 16),
                   Text(
-                    news.title,
+                    news.localizedTitle(localeCode),
                     style: Theme.of(context).textTheme.displayMedium,
                   ),
                   if (news.publishedAudio) ...[
@@ -130,16 +159,27 @@ class _NewsDetailBody extends HookConsumerWidget {
                       );
                     }),
                   ],
-                  if (news.prefix != null && news.prefix!.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _HtmlContent(html: news.prefix!, isLead: true),
-                  ],
-                  if (news.content != null && news.content!.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    Divider(color: colors.divider),
-                    const SizedBox(height: 20),
-                    _HtmlContent(html: news.content!),
-                  ],
+                  Builder(builder: (ctx) {
+                    final lp = news.localizedPrefix(localeCode);
+                    if (lp == null || lp.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: _HtmlContent(html: lp, isLead: true),
+                    );
+                  }),
+                  Builder(builder: (ctx) {
+                    final lc = news.localizedContent(localeCode);
+                    if (lc == null || lc.isEmpty) return const SizedBox.shrink();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 20),
+                        Divider(color: colors.divider),
+                        const SizedBox(height: 20),
+                        _HtmlContent(html: lc),
+                      ],
+                    );
+                  }),
                   if (news.photo02Url != null || news.photo03Url != null) ...[
                     const SizedBox(height: 24),
                     _AdditionalPhotos(news: news),
@@ -150,6 +190,7 @@ class _NewsDetailBody extends HookConsumerWidget {
           ),
         ],
       ),
+      ),  // RefreshIndicator
     );
   }
 }

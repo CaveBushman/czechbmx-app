@@ -1,4 +1,5 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../models/order_model.dart';
 import '../models/product_model.dart';
 import '../shop_repository.dart';
 
@@ -83,4 +84,17 @@ class _ProductDetailNotifier extends FamilyAsyncNotifier<ProductModel, String> {
   @override
   Future<ProductModel> build(String slug) =>
       ref.read(shopRepositoryProvider).fetchProduct(slug);
+}
+
+final myOrdersProvider =
+    AsyncNotifierProvider<_OrdersNotifier, List<OrderModel>>(
+  _OrdersNotifier.new,
+);
+
+class _OrdersNotifier extends AsyncNotifier<List<OrderModel>> {
+  @override
+  Future<List<OrderModel>> build() =>
+      ref.read(authenticatedShopRepositoryProvider).fetchOrders();
+
+  Future<void> refresh() => Future.sync(() => ref.invalidateSelf());
 }

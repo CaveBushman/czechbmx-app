@@ -7,7 +7,7 @@ class AuthInterceptor extends Interceptor {
   final Dio _refreshDio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
 
   @override
-  void onRequest(
+  Future<void> onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
@@ -19,7 +19,7 @@ class AuthInterceptor extends Interceptor {
   }
 
   @override
-  void onError(DioException err, ErrorInterceptorHandler handler) async {
+  Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
     if (err.response?.statusCode != 401) {
       handler.next(err);
       return;

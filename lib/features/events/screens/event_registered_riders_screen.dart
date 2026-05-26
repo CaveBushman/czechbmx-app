@@ -196,7 +196,7 @@ class _CountPanel extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              isAll ? 'Celkem přihlášeno' : 'Počet jezdců v kategorii',
+              isAll ? context.l10n.totalRegistered : context.l10n.ridersInCategory,
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium!
