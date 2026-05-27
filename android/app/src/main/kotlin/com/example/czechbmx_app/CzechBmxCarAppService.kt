@@ -8,7 +8,6 @@ import androidx.car.app.Screen
 import androidx.car.app.Session
 import androidx.car.app.model.Action
 import androidx.car.app.model.CarColor
-import androidx.car.app.model.CarIcon
 import androidx.car.app.model.CarLocation
 import androidx.car.app.model.ItemList
 import androidx.car.app.model.ListTemplate
@@ -18,7 +17,6 @@ import androidx.car.app.model.PlaceListMapTemplate
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
 import androidx.car.app.validation.HostValidator
-import androidx.core.graphics.drawable.IconCompat
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -93,7 +91,14 @@ private fun launchNav(ctx: androidx.car.app.CarContext, lat: Double, lon: Double
             Intent(Intent.ACTION_VIEW, android.net.Uri.parse("google.navigation:q=$lat,$lon"))
                 .apply { setPackage("com.google.android.apps.maps") }
         )
-    } catch (_: Exception) {}
+    } catch (_: Exception) {
+        // Fallback pokud selže Google Maps package filter
+        try {
+            ctx.startCarApp(
+                Intent(Intent.ACTION_VIEW, android.net.Uri.parse("geo:$lat,$lon?q=$lat,$lon"))
+            )
+        } catch (_: Exception) {}
+    }
 }
 
 // ── Main menu ─────────────────────────────────────────────────────────────────
@@ -112,10 +117,10 @@ private class MainMenuCarScreen(ctx: androidx.car.app.CarContext) : Screen(ctx) 
             )
             .addItem(
                 Row.Builder()
-                    .setTitle("Kalendář závodů")
-                    .addText("Nadcházející závody")
+                    .setTitle("Mapa BMX tratí")
+                    .addText("Seznam a navigace na tratě")
                     .setBrowsable(true)
-                    .setOnClickListener { screenManager.push(CalendarCarScreen(carContext)) }
+                    .setOnClickListener { screenManager.push(TracksMapCarScreen(carContext)) }
                     .build()
             )
             .addItem(
@@ -156,8 +161,8 @@ private class NextRaceCarScreen(ctx: androidx.car.app.CarContext) : Screen(ctx) 
                     ItemList.Builder()
                         .addItem(
                             Row.Builder()
-                                .setTitle("Žádné nadcházející závody")
-                                .addText("Otevřete aplikaci pro více informací")
+                                .setTitle("Žádné tratě nenalezeny")
+                                .addText("Synchronizujte data v mobilní aplikaci")
                                 .build()
                         )
                         .build()
@@ -187,7 +192,7 @@ private class NextRaceCarScreen(ctx: androidx.car.app.CarContext) : Screen(ctx) 
 
 // ── Calendar (up to 6 upcoming races) ────────────────────────────────────────
 
-private class CalendarCarScreen(ctx: androidx.car.app.CarContext) : Screen(ctx) {
+private class TracksMapCarScreen(ctx: androidx.car.app.CarContext) : Screen(ctx) {
 
     override fun onGetTemplate(): Template {
         val prefs = CarPrefs.prefs(carContext)
@@ -195,7 +200,7 @@ private class CalendarCarScreen(ctx: androidx.car.app.CarContext) : Screen(ctx) 
 
         if (count == 0) {
             return ListTemplate.Builder()
-                .setTitle("Kalendář závodů")
+                .setTitle("Mapa BMX tratí")
                 .setHeaderAction(Action.BACK)
                 .setSingleList(
                     ItemList.Builder()
@@ -236,13 +241,13 @@ private class CalendarCarScreen(ctx: androidx.car.app.CarContext) : Screen(ctx) 
 
         return if (hasCoords) {
             PlaceListMapTemplate.Builder()
-                .setTitle("Kalendář závodů")
+                .setTitle("Mapa BMX tratí")
                 .setHeaderAction(Action.BACK)
                 .setItemList(listBuilder.build())
                 .build()
         } else {
             ListTemplate.Builder()
-                .setTitle("Kalendář závodů")
+                .setTitle("Mapa BMX tratí")
                 .setHeaderAction(Action.BACK)
                 .setSingleList(listBuilder.build())
                 .build()

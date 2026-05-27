@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
+import '../../core/constants/api_constants.dart';
 import '../../features/events/models/event_model.dart';
 import '../../features/news/models/news_model.dart';
 
@@ -16,7 +17,7 @@ class HomeWidgetService {
   static const _qualifiedName =
       'com.example.czechbmx_app.NextRaceWidgetProvider';
 
-  static const int _maxCalendarEvents = 6;
+  static const int _maxCalendarEvents = 20; // Zvýšení limitu pro mapu tratí
   static const int _maxNewsItems = 5;
 
   static Future<void> init() async {
@@ -58,20 +59,33 @@ class HomeWidgetService {
     if (lat != null) await HomeWidget.saveWidgetData<double>('next_race_lat', lat);
     if (lon != null) await HomeWidget.saveWidgetData<double>('next_race_lon', lon);
 
-    // Calendar cache for Android Auto (next _maxCalendarEvents events)
-    final calEvents = upcoming.take(_maxCalendarEvents).toList();
-    await HomeWidget.saveWidgetData<int>('car_events_count', calEvents.length);
-    for (var i = 0; i < calEvents.length; i++) {
-      final e = calEvents[i];
-      final d = e.date!;
-      await HomeWidget.saveWidgetData<String>('car_event_${i}_name', e.name);
-      await HomeWidget.saveWidgetData<String>('car_event_${i}_date', _isoDate(d));
-      await HomeWidget.saveWidgetData<String>('car_event_${i}_city', e.organizerCity ?? '');
-      if (e.organizerLat != null) {
-        await HomeWidget.saveWidgetData<double>('car_event_${i}_lat', e.organizerLat!);
-      }
-      if (e.organizerLon != null) {
-        await HomeWidget.saveWidgetData<double>('car_event_${i}_lon', e.organizerLon!);
+    await HomeWidget.updateWidget(qualifiedAndroidName: _qualifiedName);
+  }
+
+  /// Aktualizuje databázi tratí pro mapu a Android Auto na základě klubů.
+  static Future<void> updateTracksCache(List<Map<String, dynamic>> clubs) async {
+    // Filtrujeme pouze kluby, které mají v databázi lat/lng
+    final trackClubs = clubs.where((c) {
+      final lat = c['lat'];
+      final lon = c['lng']; // API obvykle vrací 'lng'
+      return lat != null && lon != null;
+    }).toList();
+
+    // Pro zachování kompatibility s existujícím car_event klíčem v Android Auto
+    await HomeWidget.saveWidgetData<int>('car_events_count', trackClubs.length);
+    
+    for (var i = 0; i < trackClubs.length; i++) {
+      final c = trackClubs[i];
+      await HomeWidget.saveWidgetData<String>('car_event_${i}_name', c['team_name'] ?? '');
+      await HomeWidget.saveWidgetData<String>('car_event_${i}_city', c['city'] ?? '');
+      await HomeWidget.saveWidgetData<String>('car_event_${i}_date', ''); // Tratě nemají datum
+      
+      final lat = c['lat'];
+      final lon = c['lng'];
+      
+      if (lat is num && lon is num) {
+        await HomeWidget.saveWidgetData<double>('car_event_${i}_lat', lat.toDouble());
+        await HomeWidget.saveWidgetData<double>('car_event_${i}_lon', lon.toDouble());
       }
     }
 

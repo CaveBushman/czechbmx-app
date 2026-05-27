@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -124,11 +125,8 @@ class _RiderDetailBody extends ConsumerWidget {
           SliverAppBar(
             expandedHeight: 240,
             pinned: true,
-            title: Text(
-              rider.fullName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            centerTitle: false,
+            titleSpacing: 0,
             actions: [
               IconButton(
                 icon: const Icon(Icons.qr_code_outlined),
@@ -146,25 +144,36 @@ class _RiderDetailBody extends ConsumerWidget {
                     color: isFavorite ? Colors.redAccent : null,
                   ),
                 ),
-                onPressed: () => ref
-                    .read(favoriteRidersProvider.notifier)
-                    .toggle(rider.uciId),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  ref.read(favoriteRidersProvider.notifier).toggle(rider.uciId);
+                },
                 tooltip: context.l10n.myRiders,
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
+              titlePadding: const EdgeInsets.only(left: 48, bottom: 16),
+              title: Text(
+                rider.fullName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                ),
+              ),
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (rider.photoUrl != null)
-                    CachedNetworkImage(
-                      imageUrl: rider.photoUrl!,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) =>
-                          _AvatarBackground(rider: rider),
-                    )
-                  else
-                    _AvatarBackground(rider: rider),
+                  Hero(
+                    tag: 'rider_avatar_${rider.uciId}',
+                    child: rider.photoUrl != null
+                        ? CachedNetworkImage(
+                            imageUrl: rider.photoUrl!,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) =>
+                                _AvatarBackground(rider: rider),
+                          )
+                        : _AvatarBackground(rider: rider),
+                  ),
                   DecoratedBox(
                     decoration: BoxDecoration(gradient: colors.cardOverlay),
                   ),
@@ -180,7 +189,7 @@ class _RiderDetailBody extends ConsumerWidget {
                 children: [
                   // Name + nationality row
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
                         child: Column(
@@ -188,11 +197,18 @@ class _RiderDetailBody extends ConsumerWidget {
                           children: [
                             Text(
                               rider.fullName,
-                              style: Theme.of(context).textTheme.displayMedium,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .displayMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -1,
+                                  ),
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 12),
                       _NationalityBadge(nationality: rider.nationality),
                     ],
                   ),
@@ -235,10 +251,27 @@ class _RiderDetailBody extends ConsumerWidget {
                         label: context.l10n.plateNumber,
                         value: rider.plateNumber!,
                       ),
-                    _InfoTile(
-                      icon: Icons.badge_outlined,
-                      label: 'UCI ID',
-                      value: rider.uciId.toString(),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          Clipboard.setData(
+                              ClipboardData(text: rider.uciId.toString()));
+                          HapticFeedback.mediumImpact();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('UCI ID zkopírováno'),
+                                duration: Duration(seconds: 1)),
+                          );
+                        },
+                        child: _InfoTile(
+                          icon: Icons.badge_outlined,
+                          label: 'UCI ID',
+                          value: rider.uciId.toString(),
+                          trailing: const Icon(Icons.copy_outlined,
+                              size: 16, color: Colors.grey),
+                        ),
+                      ),
                     ),
                   ]),
 
@@ -250,13 +283,21 @@ class _RiderDetailBody extends ConsumerWidget {
                         icon: Icons.looks_one_outlined,
                         label: context.l10n.category20,
                         value: class20,
-                        trailing: rider.ranking20 != null ? Text('#${rider.ranking20}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)) : null,
+                        trailing: rider.ranking20 != null
+                            ? _RankingBadge(
+                                rank: rider.ranking20!,
+                              )
+                            : null,
                       ),
                       _InfoTile(
                         icon: Icons.looks_two_outlined,
                         label: context.l10n.category24,
                         value: class24,
-                        trailing: rider.ranking24 != null ? Text('#${rider.ranking24}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)) : null,
+                        trailing: rider.ranking24 != null
+                            ? _RankingBadge(
+                                rank: rider.ranking24!,
+                              )
+                            : null,
                       ),
                     ],
                   ),
@@ -298,14 +339,13 @@ class _AvatarBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: context.colors.surfaceVariant,
+      color: AppColors.primary.withValues(alpha: 0.05),
       child: Center(
-        child: Text(
-          rider.firstName.isNotEmpty ? rider.firstName[0].toUpperCase() : '?',
-          style: TextStyle(
-            fontSize: 80,
-            fontWeight: FontWeight.w800,
-            color: AppColors.primary.withValues(alpha: 0.3),
+        child: Opacity(
+          opacity: 0.2,
+          child: Image.asset(
+            'assets/images/logo_kruh.png',
+            width: 120,
           ),
         ),
       ),
@@ -323,18 +363,74 @@ class _NationalityBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: context.colors.surfaceVariant,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: context.colors.border),
+        color: AppColors.primary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.2),
+          width: 1,
+        ),
       ),
       child: Text(
         nationality,
         style: TextStyle(
           fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: context.colors.textSecondary,
+          fontWeight: FontWeight.w900,
+          color: AppColors.primary,
           letterSpacing: 1,
         ),
+      ),
+    );
+  }
+}
+
+class _RankingBadge extends StatelessWidget {
+  final String rank;
+
+  const _RankingBadge({required this.rank});
+
+  @override
+  Widget build(BuildContext context) {
+    final isTopThree = ['1', '2', '3'].contains(rank);
+    final color = isTopThree ? AppColors.primary : context.colors.textPrimary;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: isTopThree
+            ? LinearGradient(
+                colors: [
+                  AppColors.primary,
+                  AppColors.primary.withValues(alpha: 0.7),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null,
+        color: isTopThree ? null : context.colors.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: isTopThree
+            ? [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                )
+              ]
+            : null,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '#$rank',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: isTopThree ? Colors.white : color,
+              height: 1,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -352,9 +448,9 @@ class _Badge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -466,9 +562,9 @@ class _DetailCard extends StatelessWidget {
               child: Text(
                 title!.toUpperCase(),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      letterSpacing: 1,
-                      color: context.colors.textMuted,
-                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.5,
+                      color: AppColors.primary.withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w900,
                     ),
               ),
             ),

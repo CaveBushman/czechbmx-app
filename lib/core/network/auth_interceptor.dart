@@ -61,12 +61,19 @@ class AuthInterceptor extends Interceptor {
         await TokenStorage.save(access: newAccess, refresh: newRefresh);
       }
 
-      // Retry original request with new token
-      final opts = err.requestOptions
-        ..headers['Authorization'] = 'Bearer $newAccess';
-      final retryResponse = await _refreshDio.fetch(opts);
-      handler.resolve(retryResponse);
+      // Retry original request with new token.
+      // Use a nested try so a 403/404/5xx on the retry doesn't trigger logout —
+      // only a genuine token failure (401) should do that.
+      try {
+        final opts = err.requestOptions
+          ..headers['Authorization'] = 'Bearer $newAccess';
+        final retryResponse = await _refreshDio.fetch(opts);
+        handler.resolve(retryResponse);
+      } on DioException catch (retryErr) {
+        handler.reject(retryErr);
+      }
     } catch (_) {
+      // Token refresh itself failed — session is truly over.
       await TokenStorage.clear();
       onForceLogout?.call();
       handler.next(err);

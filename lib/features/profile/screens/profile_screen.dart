@@ -36,10 +36,10 @@ class ProfileScreen extends HookConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.person_outline,
-                size: 80,
-                color: context.colors.textMuted,
+              Image.asset(
+                'assets/images/Logo_kruh.png',
+                width: 80,
+                height: 80,
               ),
               const SizedBox(height: 16),
               Text(

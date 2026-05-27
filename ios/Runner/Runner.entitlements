@@ -8,7 +8,7 @@
 	</array>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.example.czechbmxApp</string>
+		<string>group.com.fpmc.czechbmxApp</string>
 	</array>
 </dict>
 </plist>

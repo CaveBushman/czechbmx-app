@@ -78,9 +78,9 @@ dev_dependencies:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/icon/app_icon.png"
+  image_path: "assets/images/logo_kruh.png"
   adaptive_icon_background: "#080A0F"
-  adaptive_icon_foreground: "assets/icon/racing_plate.png"
+  adaptive_icon_foreground: "assets/images/logo_kruh.png"
 
 flutter:
   uses-material-design: true

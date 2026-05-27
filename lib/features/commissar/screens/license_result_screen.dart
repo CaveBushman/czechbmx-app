@@ -39,24 +39,34 @@ class LicenseResultScreen extends ConsumerWidget {
         ),
         error: (err, _) {
           final apiErr = err is ApiException ? err : null;
-          final is403 = apiErr?.statusCode == 403;
+          final code = apiErr?.statusCode;
+          final is401 = code == 401;
+          final is403 = code == 403;
           final errMsg = apiErr?.message ?? err.toString();
+
+          final IconData icon;
+          final String title;
+          if (is401) {
+            icon = Icons.lock_clock_outlined;
+            title = 'Relace vypršela – přihlaste se znovu';
+          } else if (is403) {
+            icon = Icons.lock_outline;
+            title = 'Přístup odepřen';
+          } else {
+            icon = Icons.error_outline;
+            title = context.l10n.riderNotFound;
+          }
+
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(32),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    is403 ? Icons.lock_outline : Icons.error_outline,
-                    size: 64,
-                    color: AppColors.error,
-                  ),
+                  Icon(icon, size: 64, color: AppColors.error),
                   const SizedBox(height: 16),
                   Text(
-                    is403
-                        ? 'Přístup odepřen'
-                        : context.l10n.riderNotFound,
+                    title,
                     style: Theme.of(context).textTheme.titleLarge,
                     textAlign: TextAlign.center,
                   ),
@@ -72,21 +82,32 @@ class LicenseResultScreen extends ConsumerWidget {
                     style: TextStyle(color: colors.textMuted, fontSize: 12),
                   ),
                   const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: () => ref.invalidate(licenseProvider(uciId)),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Zkusit znovu'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary,
+                  if (is401)
+                    FilledButton.icon(
+                      onPressed: () => context.go('/login'),
+                      icon: const Icon(Icons.login),
+                      label: const Text('Přihlásit se'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                      ),
+                    )
+                  else ...[
+                    FilledButton.icon(
+                      onPressed: () => ref.invalidate(licenseProvider(uciId)),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Zkusit znovu'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: () =>
-                        context.pushReplacement('/commissar/scan'),
-                    icon: const Icon(Icons.qr_code_scanner),
-                    label: Text(context.l10n.scanQrCode),
-                  ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          context.pushReplacement('/commissar/scan'),
+                      icon: const Icon(Icons.qr_code_scanner),
+                      label: Text(context.l10n.scanQrCode),
+                    ),
+                  ],
                 ],
               ),
             ),

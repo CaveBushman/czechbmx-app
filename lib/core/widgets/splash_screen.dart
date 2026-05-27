@@ -43,31 +43,10 @@ class SplashLoadingBox extends StatelessWidget {
           child: Column(
             children: [
               const Spacer(),
-              Container(
+              Image.asset(
+                'assets/images/Logo_kruh.png',
                 width: 64,
                 height: 64,
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.5),
-                      blurRadius: 24,
-                      spreadRadius: 4,
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Text(
-                    'BMX',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 16,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ),
               ),
               const SizedBox(height: 18),
               const Text(

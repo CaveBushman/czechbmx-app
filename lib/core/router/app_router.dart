@@ -73,6 +73,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final authState = authNotifier.value;
       final isLogin = loc == '/login';
       if (authState is AuthAuthenticated && isLogin) return '/news';
+
+      // Commissar routes: only admins and commissars may access them.
+      if (loc.startsWith('/commissar/')) {
+        final user = authState is AuthAuthenticated ? authState.user : null;
+        if (user == null || (!user.isCommissar && !user.isAdmin)) return '/profile';
+      }
+
       return null;
     },
     routes: [

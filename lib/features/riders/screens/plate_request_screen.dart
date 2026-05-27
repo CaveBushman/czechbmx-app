@@ -197,6 +197,7 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
         }
       }
       _gender = normalizePlateRequestGender(d['gender']);
+      HapticFeedback.mediumImpact();
       setState(() => _lookupStatus = 'found');
     } on DioException catch (e) {
       if (!mounted) return;
@@ -271,7 +272,10 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
         'emergency_contact': _emergencyContactController.text.trim(),
         'emergency_phone': _emergencyPhoneController.text.trim(),
       });
-      if (mounted) setState(() => _submitted = true);
+      if (mounted) {
+        HapticFeedback.heavyImpact();
+        setState(() => _submitted = true);
+      }
     } on DioException catch (e) {
       if (!mounted) return;
       final msg =
@@ -313,6 +317,7 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
           Expanded(
             child: Form(
               key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
                 children: [
@@ -370,6 +375,7 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
                                         key: ValueKey('empty_suffix')),
                           ),
                         ),
+                        textInputAction: TextInputAction.next,
                         keyboardType: TextInputType.number,
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
@@ -419,14 +425,16 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
                                 controller: _firstNameController,
                                 label: context.l10n.firstName,
                                 required: true,
-                                readOnly: _apiDataLocked)),
+                                readOnly: _apiDataLocked,
+                                textInputAction: TextInputAction.next)),
                         const SizedBox(width: 10),
                         Expanded(
                             child: _Field(
                                 controller: _lastNameController,
                                 label: context.l10n.lastName,
                                 required: true,
-                                readOnly: _apiDataLocked)),
+                                readOnly: _apiDataLocked,
+                                textInputAction: TextInputAction.next)),
                       ]),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -575,13 +583,16 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
                       _Field(
                           controller: _emergencyContactController,
                           label: context.l10n.emergencyContact,
-                          required: true),
+                          required: true,
+                          textInputAction: TextInputAction.next),
                       const SizedBox(height: 16),
                       _Field(
                         controller: _emergencyPhoneController,
                         label: context.l10n.emergencyPhone,
                         required: true,
                         keyboardType: TextInputType.phone,
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _canSubmit ? _submit() : null,
                         validator: (v) => (v == null || v.trim().length < 9)
                             ? context.l10n.phone
                             : null,
@@ -646,6 +657,12 @@ class _SuccessView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Image.asset(
+                'assets/images/logo_kruh.png',
+                width: 80,
+                height: 80,
+              ),
+              const SizedBox(height: 24),
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -802,6 +819,8 @@ class _Field extends StatelessWidget {
   final bool required;
   final bool readOnly;
   final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onFieldSubmitted;
   final String? Function(String?)? validator;
 
   const _Field({
@@ -810,6 +829,8 @@ class _Field extends StatelessWidget {
     this.required = false,
     this.readOnly = false,
     this.keyboardType,
+    this.textInputAction,
+    this.onFieldSubmitted,
     this.validator,
   });
 
@@ -818,6 +839,8 @@ class _Field extends StatelessWidget {
     return TextFormField(
       controller: controller,
       readOnly: readOnly,
+      textInputAction: textInputAction,
+      onFieldSubmitted: onFieldSubmitted,
       decoration: InputDecoration(
         labelText: label,
         filled: true,

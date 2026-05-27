@@ -670,12 +670,6 @@ class _ActionGrid extends StatelessWidget {
           label: context.l10n.foreignRider,
           onTap: () => openForeignEntrySheet(context, event),
         ),
-      if (event.hasTrackCoordinates)
-        _EventAction(
-          icon: Icons.navigation_outlined,
-          label: context.l10n.navigateToTrack,
-          onTap: () => _openNavigation(event),
-        ),
       _EventAction(
         icon: Icons.groups_outlined,
         label: context.l10n.registeredRiders,

@@ -32,6 +32,11 @@ class AppLocalizations {
     return _localizedValues.containsKey(code) ? code : 'en';
   }
 
+  /// Vrátí plný kód jazyka (např. 'cs-CZ') vhodný pro audio služby a TTS.
+  String get audioLocaleTag {
+    return locale.toLanguageTag();
+  }
+
   String t(String key) {
     return _localizedValues[languageCode]?[key] ??
         _localizedValues['en']?[key] ??

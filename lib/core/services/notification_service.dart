@@ -25,8 +25,16 @@ class NotificationService {
     importance: Importance.high,
   );
 
+  static bool _initialized = false;
+
   static Future<void> init() async {
-    await Firebase.initializeApp();
+    try {
+      await Firebase.initializeApp();
+    } catch (_) {
+      // Firebase not configured — push notifications will be unavailable.
+      return;
+    }
+    _initialized = true;
 
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
@@ -85,6 +93,22 @@ class NotificationService {
     if (initial != null) {
       _handlePayload(initial.data['path'] as String?);
     }
+  }
+
+  // Returns the current FCM token (null if Firebase not configured or unavailable).
+  static Future<String?> getToken() async {
+    if (!_initialized) return null;
+    try {
+      return await _messaging.getToken();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Registers a callback that fires whenever the token is rotated.
+  static void onTokenRefresh(void Function(String token) callback) {
+    if (!_initialized) return;
+    _messaging.onTokenRefresh.listen(callback);
   }
 
   // Navigate to the path carried in notification payload: "/news/slug" or "/events/42".

@@ -83,23 +83,10 @@ class NewsListScreen extends HookConsumerWidget {
                     )
                   : Row(
                       children: [
-                        Container(
+                        Image.asset(
+                          'assets/images/Logo_kruh.png',
                           width: 28,
                           height: 28,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'B',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
                         ),
                         const SizedBox(width: 10),
                         Text(context.l10n.appTitle),
