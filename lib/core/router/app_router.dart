@@ -14,7 +14,9 @@ import '../../features/onboarding/screens/onboarding_screen.dart';
 import '../../features/rankings/screens/rankings_screen.dart';
 import '../../features/riders/screens/rider_detail_screen.dart';
 import '../../features/riders/screens/riders_list_screen.dart';
+import '../../features/commissar/screens/license_result_screen.dart';
 import '../../features/commissar/screens/qr_scanner_screen.dart';
+import '../../features/clubs/screens/club_detail_screen.dart';
 import '../../features/events/screens/events_map_screen.dart';
 import '../../features/profile/screens/credit_topup_screen.dart';
 import '../../features/search/screens/search_screen.dart';
@@ -111,10 +113,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/commissar/license/:uciId',
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: _intParamScreen(
+            state: state,
+            name: 'uciId',
+            builder: (uciId) => LicenseResultScreen(uciId: uciId),
+          ),
+        ),
+      ),
+      GoRoute(
         path: '/events-map',
         pageBuilder: (context, state) => _slideTransition(
           key: state.pageKey,
           child: const EventsMapScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/clubs/:id',
+        pageBuilder: (context, state) => _slideTransition(
+          key: state.pageKey,
+          child: _intParamScreen(
+            state: state,
+            name: 'id',
+            builder: (id) => ClubDetailScreen(clubId: id),
+          ),
         ),
       ),
       ShellRoute(
@@ -337,18 +361,6 @@ class _MainShell extends ConsumerWidget {
           child: child,
         ),
       ),
-      // Hide search FAB on News tab — that screen has its own AppBar search.
-      floatingActionButton: currentIndex == 0
-          ? null
-          : FloatingActionButton.small(
-              heroTag: 'search_fab',
-              backgroundColor: context.colors.card,
-              foregroundColor: context.colors.textPrimary,
-              elevation: 2,
-              onPressed: () => context.push('/search'),
-              tooltip: context.l10n.search,
-              child: const Icon(Icons.search_rounded, size: 22),
-            ),
       bottomNavigationBar: NavigationBar(
         backgroundColor: context.colors.surface,
         indicatorColor: AppColors.primary.withValues(alpha: 0.18),

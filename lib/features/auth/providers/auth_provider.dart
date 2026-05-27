@@ -1,5 +1,7 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../../../core/network/auth_interceptor.dart';
 import '../../../core/services/biometric_service.dart';
+import '../../../core/services/notification_service.dart';
 import '../auth_repository.dart';
 
 // Auth state: null = loading, UserModel = logged in, _LoggedOut = logged out
@@ -42,8 +44,16 @@ final isAuthenticatedProvider = Provider<bool>((ref) {
 class AuthNotifier extends AsyncNotifier<AuthState> {
   @override
   Future<AuthState> build() async {
+    AuthInterceptor.onForceLogout = () {
+      state = const AsyncData(AuthUnauthenticated());
+    };
+    ref.onDispose(() => AuthInterceptor.onForceLogout = null);
     final user = await ref.read(authRepositoryProvider).restoreSession();
-    return user != null ? AuthAuthenticated(user) : const AuthUnauthenticated();
+    if (user != null) {
+      _registerFcmToken();
+      return AuthAuthenticated(user);
+    }
+    return const AuthUnauthenticated();
   }
 
   Future<void> login({required String email, required String password}) async {
@@ -53,6 +63,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
           .read(authRepositoryProvider)
           .login(email: email, password: password);
       state = AsyncData(AuthAuthenticated(user));
+      _registerFcmToken();
     } catch (e) {
       state = const AsyncData(AuthUnauthenticated());
       rethrow;
@@ -106,5 +117,15 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     final user = await ref.read(authRepositoryProvider).updatePhoto(filePath);
     state = AsyncData(AuthAuthenticated(user));
     return user;
+  }
+
+  void _registerFcmToken() {
+    NotificationService.getToken().then((token) {
+      if (token == null) return;
+      ref.read(authRepositoryProvider).registerFcmToken(token).ignore();
+    });
+    NotificationService.onTokenRefresh((token) {
+      ref.read(authRepositoryProvider).registerFcmToken(token).ignore();
+    });
   }
 }

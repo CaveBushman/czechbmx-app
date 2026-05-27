@@ -7,7 +7,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/l10n/language_settings_tile.dart';
 import '../../../core/providers/font_scale_provider.dart';
-import '../../../core/services/biometric_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_settings_tile.dart';
 import '../../../core/widgets/avatar_crop_screen.dart';
@@ -343,8 +342,6 @@ class ProfileScreen extends HookConsumerWidget {
                 const ThemeSettingsTile(),
                 const SizedBox(height: 12),
                 const _FontSizeTile(),
-                const SizedBox(height: 12),
-                const _BiometricTile(),
                 if (user.isCommissar || user.isAdmin) ...[
                   const SizedBox(height: 12),
                   _CommissarScanTile(),
@@ -999,70 +996,6 @@ class _FontSizeTile extends ConsumerWidget {
               ),
               const Text('A', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BiometricTile extends StatefulWidget {
-  const _BiometricTile();
-
-  @override
-  State<_BiometricTile> createState() => _BiometricTileState();
-}
-
-class _BiometricTileState extends State<_BiometricTile> {
-  bool _available = false;
-  bool _enabled = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final available = await BiometricService.isAvailable();
-    final enabled = await BiometricService.isEnabled();
-    if (mounted) setState(() { _available = available; _enabled = enabled; });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_available) return const SizedBox.shrink();
-    final colors = context.colors;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.fingerprint, color: colors.textMuted, size: 22),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(context.l10n.biometricUnlock,
-                    style: Theme.of(context).textTheme.titleSmall),
-                Text(context.l10n.biometricUnlockDesc,
-                    style: Theme.of(context).textTheme.bodySmall!
-                        .copyWith(color: colors.textMuted)),
-              ],
-            ),
-          ),
-          Switch(
-            value: _enabled,
-            activeColor: AppColors.primary,
-            onChanged: (val) async {
-              await BiometricService.setEnabled(val);
-              setState(() => _enabled = val);
-            },
           ),
         ],
       ),

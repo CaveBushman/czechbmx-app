@@ -9,7 +9,7 @@ final teamsMapProvider = FutureProvider<Map<int, String>>((ref) async {
   // Try /api/teams/ first, fall back to /api/clubs/
   for (final endpoint in [ApiConstants.teams, ApiConstants.clubs]) {
     try {
-      final dio = ref.read(publicDioProvider);
+      final dio = ref.watch(publicDioProvider);
       final response = await dio.get(endpoint);
       final data = response.data;
       final list = data is List ? data : (data as Map)['results'] as List;
@@ -39,6 +39,20 @@ final ridersProvider = AsyncNotifierProvider<RidersNotifier, List<RiderModel>>(
   RidersNotifier.new,
 );
 
+final ridersCacheWarmupProvider = FutureProvider<void>((ref) async {
+  final authState = await ref.watch(authProvider.future);
+  if (authState is! AuthAuthenticated) return;
+
+  try {
+    await ref.read(riderRepositoryProvider).warmDefaultRidersCache();
+    if (ref.read(ridersFilterProvider).isDefault) {
+      ref.invalidate(ridersProvider);
+    }
+  } catch (_) {
+    // Warmup is best effort; the riders screen still handles its own errors.
+  }
+});
+
 class RidersNotifier extends AsyncNotifier<List<RiderModel>> {
   @override
   Future<List<RiderModel>> build() async {
@@ -64,7 +78,9 @@ class RidersNotifier extends AsyncNotifier<List<RiderModel>> {
 
     final filter = ref.read(ridersFilterProvider);
     state = await AsyncValue.guard(
-      () => ref.read(riderRepositoryProvider).fetchRiders(filter: filter),
+      () => ref
+          .read(riderRepositoryProvider)
+          .fetchRiders(filter: filter, forceRefresh: true),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/services/home_widget_service.dart';
 import '../models/news_model.dart';
 import '../news_repository.dart';
 
@@ -79,6 +80,7 @@ class NewsListNotifier extends AsyncNotifier<NewsPageState> {
   Future<NewsPageState> build() async {
     final repo = ref.watch(newsRepositoryProvider);
     final page = await repo.fetchNews(page: 1);
+    HomeWidgetService.updateNewsCache(page.items).ignore();
     return NewsPageState(articles: page.items, hasMore: page.hasMore);
   }
 

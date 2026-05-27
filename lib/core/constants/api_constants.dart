@@ -24,7 +24,10 @@ class ApiConstants {
   static const String authPasswordResetConfirm =
       '/api/auth/password/reset/confirm/';
   static const String authPasswordChange = '/api/auth/password/change/';
+  static const String authFcmToken = '/api/auth/fcm-token/';
 
+  static String clubDetail(int id) => '/api/clubs/$id/';
+  static String riderLicense(int uciId) => '/api/riders/$uciId/license/';
   static const String plateRequest = '/api/riders/plate-request/';
   static const String plateRequestLookup = '/api/riders/plate-request/lookup/';
   static const String plateRequestFreePlates = '/api/riders/plate-request/free-plates/';

@@ -9,15 +9,19 @@ import 'core/providers/deep_link_provider.dart';
 import 'core/providers/font_scale_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/services/home_widget_service.dart';
+import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
+import 'core/widgets/app_lock_gate.dart';
 import 'core/widgets/splash_screen.dart';
 import 'features/auth/providers/auth_provider.dart';
+import 'features/riders/providers/rider_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting();
   await HomeWidgetService.init();
+  await NotificationService.init();
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -35,7 +39,9 @@ class CzechBmxApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
     final authAsync = ref.watch(authProvider);
     final isOffline = ref.watch(isOfflineProvider);
-    final fontScale = ref.watch(fontScaleProvider).valueOrNull ?? kFontScaleDefault;
+    final fontScale =
+        ref.watch(fontScaleProvider).valueOrNull ?? kFontScaleDefault;
+    ref.listen(ridersCacheWarmupProvider, (_, __) {});
 
     // Cold-start deep link: navigate once the router is ready.
     ref.listen(initialDeepLinkProvider, (_, next) {
@@ -62,7 +68,8 @@ class CzechBmxApp extends ConsumerWidget {
       builder: (context, child) {
         final isLoading = authAsync is AsyncLoading;
 
-        return MediaQuery(
+        return AppLockGate(
+            child: MediaQuery(
           data: MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(fontScale),
           ),
@@ -94,7 +101,7 @@ class CzechBmxApp extends ConsumerWidget {
               ),
             ],
           ),
-        );
+        ));
       },
     );
   }

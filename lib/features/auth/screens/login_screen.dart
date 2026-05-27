@@ -9,7 +9,7 @@ import '../../riders/providers/rider_provider.dart';
 import '../providers/auth_provider.dart';
 
 final _biometricReadyProvider = FutureProvider<bool>((ref) async {
-  return await BiometricService.isAvailable() && await BiometricService.isEnabled();
+  return await BiometricService.canAuthenticate();
 });
 
 class LoginScreen extends HookConsumerWidget {

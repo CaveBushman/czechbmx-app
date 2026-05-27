@@ -7,7 +7,7 @@ import 'models/event_registered_rider_model.dart';
 import 'models/foreign_entry_model.dart';
 
 final entriesRepositoryProvider = Provider<EntriesRepository>(
-  (ref) => EntriesRepository(ref.read(dioProvider)),
+  (ref) => EntriesRepository(ref.watch(dioProvider)),
 );
 
 class EntriesRepository {

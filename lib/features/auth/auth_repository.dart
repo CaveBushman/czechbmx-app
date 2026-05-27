@@ -69,15 +69,21 @@ class UserModel {
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 final authRepositoryProvider = Provider<AuthRepository>(
-  (ref) => AuthRepository(ref.read(publicDioProvider)),
+  (ref) => AuthRepository(
+    publicDio: ref.watch(publicDioProvider),
+    authedDio: ref.watch(dioProvider),
+  ),
 );
 
 // ── Repository ────────────────────────────────────────────────────────────────
 
 class AuthRepository {
-  final Dio _dio;
+  final Dio _dio;       // public — login, logout, register
+  final Dio _authedDio; // authenticated + locale-aware — me, photo
 
-  const AuthRepository(this._dio);
+  const AuthRepository({required Dio publicDio, required Dio authedDio})
+      : _dio = publicDio,
+        _authedDio = authedDio;
 
   Future<UserModel> login({
     required String email,
@@ -145,8 +151,7 @@ class AuthRepository {
     final access = await TokenStorage.getAccess();
     if (access == null) return null;
     try {
-      final authedDio = DioClient.create();
-      final response = await authedDio.get(ApiConstants.authMe);
+      final response = await _authedDio.get(ApiConstants.authMe);
       return UserModel.fromJson(response.data as Map<String, dynamic>);
     } catch (_) {
       await TokenStorage.clear();
@@ -156,22 +161,28 @@ class AuthRepository {
 
   Future<UserModel> fetchMe() async {
     try {
-      final authedDio = DioClient.create();
-      final response = await authedDio.get(ApiConstants.authMe);
+      final response = await _authedDio.get(ApiConstants.authMe);
       return UserModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }
   }
 
+  Future<void> registerFcmToken(String token) async {
+    try {
+      await _authedDio.post(ApiConstants.authFcmToken, data: {'fcm_token': token});
+    } catch (_) {
+      // Non-critical — swallow silently.
+    }
+  }
+
   Future<UserModel> updatePhoto(String filePath) async {
     try {
-      final authedDio = DioClient.create();
       final filename = filePath.split(Platform.pathSeparator).last;
       final formData = FormData.fromMap({
         'photo': await MultipartFile.fromFile(filePath, filename: filename),
       });
-      final response = await authedDio.patch(
+      final response = await _authedDio.patch(
         ApiConstants.authMe,
         data: formData,
       );

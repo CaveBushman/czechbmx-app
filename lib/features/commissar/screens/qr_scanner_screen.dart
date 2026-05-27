@@ -37,7 +37,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
 
     _handled = true;
     _controller.stop();
-    context.pushReplacement('/riders/$uciId');
+    context.pushReplacement('/commissar/license/$uciId');
   }
 
   @override

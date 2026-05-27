@@ -6,7 +6,6 @@ class RiderModel {
   final String? middleName;
   final String lastName;
   final String nationality;
-  final String? dateOfBirth;
   final String gender;
   final String? photo;
   final int? teamId;
@@ -17,7 +16,6 @@ class RiderModel {
   final bool isActive;
   final String? class20;
   final String? class24;
-  final String? city;
   final String? plateNumber;
   final String? transponder20;
   final String? transponder24;
@@ -32,7 +30,6 @@ class RiderModel {
     this.middleName,
     required this.lastName,
     required this.nationality,
-    this.dateOfBirth,
     required this.gender,
     this.photo,
     this.teamId,
@@ -43,7 +40,6 @@ class RiderModel {
     required this.isActive,
     this.class20,
     this.class24,
-    this.city,
     this.plateNumber,
     this.transponder20,
     this.transponder24,
@@ -67,19 +63,6 @@ class RiderModel {
     return '';
   }
 
-  int? get age {
-    if (dateOfBirth == null) return null;
-    final dob = DateTime.tryParse(dateOfBirth!);
-    if (dob == null) return null;
-    final now = DateTime.now();
-    int age = now.year - dob.year;
-    if (now.month < dob.month ||
-        (now.month == dob.month && now.day < dob.day)) {
-      age--;
-    }
-    return age;
-  }
-
   factory RiderModel.fromJson(Map<String, dynamic> json) {
     return RiderModel(
       uciId: _idFromJson(json['uci_id']) ?? 0,
@@ -87,7 +70,6 @@ class RiderModel {
       middleName: _stringFromJson(json['middle_name']),
       lastName: _stringFromJson(json['last_name']) ?? '',
       nationality: _stringFromJson(json['nationality']) ?? 'CZE',
-      dateOfBirth: _stringFromJson(json['date_of_birth']),
       gender: _stringFromJson(json['gender']) ?? '',
       photo: _stringFromJson(json['photo']),
       teamId: _idFromJson(json['team']) ?? _idFromJson(json['club']),
@@ -101,7 +83,6 @@ class RiderModel {
       isActive: _boolFromJson(json['is_active'], defaultValue: true),
       class20: _stringFromJson(json['class_20']),
       class24: _stringFromJson(json['class_24']),
-      city: _stringFromJson(json['city']),
       plateNumber: (json['plate_text'] ?? json['plate_number'] ?? json['plate'])
           ?.toString(),
       transponder20: json['transponder_20']?.toString(),

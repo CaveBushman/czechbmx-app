@@ -16,6 +16,45 @@ const _genderMale = 'Muž';
 const _genderFemale = 'Žena';
 const _genderOther = 'Ostatní';
 
+String normalizePlateRequestGender(Object? value) {
+  final normalized = _normalizeGenderValue(value);
+  if (normalized.isEmpty) return _genderMale;
+
+  return switch (normalized) {
+    'm' || 'male' || 'man' || 'muz' || 'muzsky' => _genderMale,
+    'f' ||
+    'female' ||
+    'woman' ||
+    'w' ||
+    'z' ||
+    'zena' ||
+    'zensky' =>
+      _genderFemale,
+    'o' || 'other' || 'ostatni' || 'x' => _genderOther,
+    _ => _genderOther,
+  };
+}
+
+String _normalizeGenderValue(Object? value) {
+  final text = value?.toString().trim().toLowerCase() ?? '';
+  return text
+      .replaceAll('á', 'a')
+      .replaceAll('č', 'c')
+      .replaceAll('ď', 'd')
+      .replaceAll('é', 'e')
+      .replaceAll('ě', 'e')
+      .replaceAll('í', 'i')
+      .replaceAll('ň', 'n')
+      .replaceAll('ó', 'o')
+      .replaceAll('ř', 'r')
+      .replaceAll('š', 's')
+      .replaceAll('ť', 't')
+      .replaceAll('ú', 'u')
+      .replaceAll('ů', 'u')
+      .replaceAll('ý', 'y')
+      .replaceAll('ž', 'z');
+}
+
 class PlateRequestScreen extends ConsumerStatefulWidget {
   const PlateRequestScreen({super.key});
 
@@ -60,14 +99,20 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
   void initState() {
     super.initState();
     _uciController.addListener(_onUciChanged);
+    _emergencyContactController.addListener(_rebuild);
+    _emergencyPhoneController.addListener(_rebuild);
     _loadFreePlates();
     _loadClubs();
   }
+
+  void _rebuild() => setState(() {});
 
   @override
   void dispose() {
     _uciDebounce?.cancel();
     _uciController.removeListener(_onUciChanged);
+    _emergencyContactController.removeListener(_rebuild);
+    _emergencyPhoneController.removeListener(_rebuild);
     _uciController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
@@ -147,13 +192,16 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
       _lastNameController.text = d['last_name'] as String? ?? '';
       if (d['date_of_birth'] != null) {
         _dateOfBirth = DateTime.tryParse(d['date_of_birth'] as String);
-        if (_dateOfBirth != null) _dobController.text = DateFormat('d. M. yyyy').format(_dateOfBirth!);
+        if (_dateOfBirth != null) {
+          _dobController.text = DateFormat('d. M. yyyy').format(_dateOfBirth!);
+        }
       }
-      _gender = d['gender'] as String? ?? 'Muž';
+      _gender = normalizePlateRequestGender(d['gender']);
       setState(() => _lookupStatus = 'found');
     } on DioException catch (e) {
       if (!mounted) return;
-      final msg = (e.response?.data as Map<String, dynamic>?)?['error'] as String?;
+      final msg =
+          (e.response?.data as Map<String, dynamic>?)?['error'] as String?;
       setState(() {
         _lookupStatus = e.response?.statusCode == 404 ? 'not_found' : 'error';
         _lookupError = msg ?? e.message;
@@ -226,7 +274,8 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
       if (mounted) setState(() => _submitted = true);
     } on DioException catch (e) {
       if (!mounted) return;
-      final msg = (e.response?.data as Map<String, dynamic>?)?['error'] as String?;
+      final msg =
+          (e.response?.data as Map<String, dynamic>?)?['error'] as String?;
       _showError(msg ?? e.message ?? context.l10n.submitError);
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -236,6 +285,18 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
+
+  bool get _apiDataLocked => _lookupStatus == 'found';
+
+  bool get _canSubmit =>
+      _apiDataLocked &&
+      _firstNameController.text.trim().isNotEmpty &&
+      _lastNameController.text.trim().isNotEmpty &&
+      _dateOfBirth != null &&
+      _selectedPlate != null &&
+      _selectedClubId != null &&
+      _emergencyContactController.text.trim().isNotEmpty &&
+      _emergencyPhoneController.text.trim().length >= 9;
 
   // ── Build ─────────────────────────────────────────────────────────────────────
 
@@ -261,11 +322,15 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                      border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.25)),
                     ),
                     child: Text(
                       context.l10n.plateRequestIntro,
-                      style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: colors.textSecondary),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium!
+                          .copyWith(color: colors.textSecondary),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -276,6 +341,7 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
                     children: [
                       TextFormField(
                         controller: _uciController,
+                        readOnly: _apiDataLocked,
                         decoration: InputDecoration(
                           hintText: '10012345678',
                           prefixIcon: const Icon(Icons.fingerprint, size: 20),
@@ -288,27 +354,48 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
                                     child: SizedBox(
                                       width: 18,
                                       height: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.primary),
                                     ),
                                   )
-                                : const SizedBox.shrink(key: ValueKey('empty_suffix')),
+                                : _apiDataLocked
+                                    ? const Padding(
+                                        key: ValueKey('lock_icon'),
+                                        padding: EdgeInsets.all(12),
+                                        child: Icon(Icons.lock_outline,
+                                            size: 18, color: Colors.grey),
+                                      )
+                                    : const SizedBox.shrink(
+                                        key: ValueKey('empty_suffix')),
                           ),
                         ),
                         keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(11)],
-                        validator: (v) => (v == null || v.trim().length != 11) ? context.l10n.uciIdMustBe11Digits : null,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(11)
+                        ],
+                        validator: (v) => (v == null || v.trim().length != 11)
+                            ? context.l10n.uciIdMustBe11Digits
+                            : null,
                       ),
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 400),
-                        transitionBuilder: (Widget child, Animation<double> animation) {
+                        transitionBuilder:
+                            (Widget child, Animation<double> animation) {
                           return FadeTransition(
                             opacity: animation,
-                            child: SizeTransition(sizeFactor: animation, axisAlignment: -1, child: child),
+                            child: SizeTransition(
+                                sizeFactor: animation,
+                                axisAlignment: -1,
+                                child: child),
                           );
                         },
-                        child: (_lookupStatus != null && _lookupStatus != 'loading')
+                        child: (_lookupStatus != null &&
+                                _lookupStatus != 'loading')
                             ? Padding(
-                                key: ValueKey('banner_${_lookupStatus}_${_lookupError ?? ''}'),
+                                key: ValueKey(
+                                    'banner_${_lookupStatus}_${_lookupError ?? ''}'),
                                 padding: const EdgeInsets.only(top: 12),
                                 child: _StatusBanner(
                                   status: _lookupStatus!,
@@ -323,39 +410,71 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
                   ),
 
                   _FormSection(
-                    title: '${context.l10n.firstName} / ${context.l10n.lastName}',
+                    title:
+                        '${context.l10n.firstName} / ${context.l10n.lastName}',
                     children: [
                       Row(children: [
-                        Expanded(child: _Field(controller: _firstNameController, label: context.l10n.firstName, required: true)),
+                        Expanded(
+                            child: _Field(
+                                controller: _firstNameController,
+                                label: context.l10n.firstName,
+                                required: true,
+                                readOnly: _apiDataLocked)),
                         const SizedBox(width: 10),
-                        Expanded(child: _Field(controller: _lastNameController, label: context.l10n.lastName, required: true)),
+                        Expanded(
+                            child: _Field(
+                                controller: _lastNameController,
+                                label: context.l10n.lastName,
+                                required: true,
+                                readOnly: _apiDataLocked)),
                       ]),
                       const SizedBox(height: 16),
                       TextFormField(
                         readOnly: true,
-                        onTap: _pickDate,
+                        onTap: _apiDataLocked ? null : _pickDate,
                         decoration: InputDecoration(
                           labelText: context.l10n.dateOfBirth,
-                          suffixIcon: const Icon(Icons.calendar_today, size: 18),
+                          suffixIcon: _apiDataLocked
+                              ? const Icon(Icons.lock_outline,
+                                  size: 16, color: Colors.grey)
+                              : const Icon(Icons.calendar_today, size: 18),
                           filled: true,
-                          fillColor: Theme.of(context).dividerColor.withValues(alpha: 0.02),
+                          fillColor: Theme.of(context)
+                              .dividerColor
+                              .withValues(alpha: 0.02),
                         ),
                         controller: _dobController,
-                        validator: (_) => _dateOfBirth == null ? context.l10n.fillAllFields : null,
+                        validator: (_) => _dateOfBirth == null
+                            ? context.l10n.fillAllFields
+                            : null,
                       ),
-                      const SizedBox(height: 16),
-                      _SectionLabel(context.l10n.gender),
-                      SizedBox(
-                        width: double.infinity,
-                        child: SegmentedButton<String>(
-                          segments: [
-                            ButtonSegment(value: _genderMale, label: Text(context.l10n.genderMale)),
-                            ButtonSegment(value: _genderFemale, label: Text(context.l10n.genderFemale)),
-                            ButtonSegment(value: _genderOther, label: Text(context.l10n.genderOther)),
-                          ],
-                          selected: {_gender},
-                          onSelectionChanged: (val) => setState(() => _gender = val.first),
-                          showSelectedIcon: false,
+                    ],
+                  ),
+
+                  _FormSection(
+                    title: context.l10n.gender,
+                    children: [
+                      AbsorbPointer(
+                        absorbing: _apiDataLocked,
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: SegmentedButton<String>(
+                            segments: [
+                              ButtonSegment(
+                                  value: _genderMale,
+                                  label: Text(context.l10n.genderMale)),
+                              ButtonSegment(
+                                  value: _genderFemale,
+                                  label: Text(context.l10n.genderFemale)),
+                              ButtonSegment(
+                                  value: _genderOther,
+                                  label: Text(context.l10n.genderOther)),
+                            ],
+                            selected: {_gender},
+                            onSelectionChanged: (val) =>
+                                setState(() => _gender = val.first),
+                            showSelectedIcon: false,
+                          ),
                         ),
                       ),
                     ],
@@ -369,13 +488,19 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
                         value: _is20 && !_isElite,
                         contentPadding: EdgeInsets.zero,
                         title: Text(context.l10n.challenge),
-                        onChanged: (v) => setState(() { _is20 = v ?? false; _isElite = false; }),
+                        onChanged: (v) => setState(() {
+                          _is20 = v ?? false;
+                          _isElite = false;
+                        }),
                       ),
                       CheckboxListTile(
                         value: _is20 && _isElite,
                         contentPadding: EdgeInsets.zero,
                         title: Text(context.l10n.championship),
-                        onChanged: (v) => setState(() { _is20 = v ?? false; _isElite = v ?? false; }),
+                        onChanged: (v) => setState(() {
+                          _is20 = v ?? false;
+                          _isElite = v ?? false;
+                        }),
                       ),
                       CheckboxListTile(
                         value: _is24,
@@ -388,51 +513,78 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
 
                   // ── Section: Selections ──
                   _FormSection(
-                    title: '${context.l10n.selectClub} & ${context.l10n.selectPlate}',
+                    title:
+                        '${context.l10n.selectClub} & ${context.l10n.selectPlate}',
                     children: [
                       if (_loadingClubs)
                         const _SkeletonLoader()
                       else
                         DropdownButtonFormField<int>(
                           value: _selectedClubId,
-                          decoration: InputDecoration(labelText: context.l10n.selectClub),
+                          decoration: InputDecoration(
+                              labelText: context.l10n.selectClub),
                           isExpanded: true,
-                          items: _clubs.map((c) => DropdownMenuItem<int>(value: c['id'] as int, child: Text(c['team_name'] as String? ?? ''))).toList(),
+                          items: _clubs
+                              .map((c) => DropdownMenuItem<int>(
+                                  value: c['id'] as int,
+                                  child: Text(c['team_name'] as String? ?? '')))
+                              .toList(),
                           onChanged: (v) => setState(() {
                             _selectedClubId = v;
-                            _selectedClubName = _clubs.firstWhere((c) => c['id'] == v)['team_name'] as String?;
+                            // Bezpečnější vyhledávání klubu
+                            final club =
+                                _clubs.cast<Map<String, dynamic>?>().firstWhere(
+                                      (c) => c?['id'] == v,
+                                      orElse: () => null,
+                                    );
+                            _selectedClubName = club?['team_name'] as String?;
                           }),
-                          validator: (v) => v == null ? context.l10n.fillAllFields : null,
+                          validator: (v) =>
+                              v == null ? context.l10n.fillAllFields : null,
                         ),
                       const SizedBox(height: 16),
                       if (_loadingPlates)
                         const _SkeletonLoader()
                       else
                         _freePlates.isEmpty
-                            ? Text(context.l10n.noFreePlates, style: TextStyle(color: colors.textMuted))
+                            ? Text(context.l10n.noFreePlates,
+                                style: TextStyle(color: colors.textMuted))
                             : DropdownButtonFormField<String>(
-                                  value: _selectedPlate,
-                                  decoration: InputDecoration(labelText: context.l10n.plateNumber),
-                                  isExpanded: true,
-                                  items: _freePlates.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
-                                  onChanged: (v) => setState(() => _selectedPlate = v),
-                                  validator: (v) => v == null ? context.l10n.fillAllFields : null,
-                                ),
+                                value: _selectedPlate,
+                                decoration: InputDecoration(
+                                    labelText: context.l10n.plateNumber),
+                                isExpanded: true,
+                                items: _freePlates
+                                    .map((p) => DropdownMenuItem(
+                                        value: p, child: Text(p)))
+                                    .toList(),
+                                onChanged: (v) =>
+                                    setState(() => _selectedPlate = v),
+                                validator: (v) => v == null
+                                    ? context.l10n.fillAllFields
+                                    : null,
+                              ),
                     ],
                   ),
 
                   // ── Section: Emergency ──
                   _FormSection(
-                    title: '${context.l10n.emergencyContact} / ${context.l10n.emergencyPhone}',
+                    title:
+                        '${context.l10n.emergencyContact} / ${context.l10n.emergencyPhone}',
                     children: [
-                      _Field(controller: _emergencyContactController, label: context.l10n.emergencyContact, required: true),
+                      _Field(
+                          controller: _emergencyContactController,
+                          label: context.l10n.emergencyContact,
+                          required: true),
                       const SizedBox(height: 16),
                       _Field(
                         controller: _emergencyPhoneController,
                         label: context.l10n.emergencyPhone,
                         required: true,
                         keyboardType: TextInputType.phone,
-                        validator: (v) => (v == null || v.trim().length < 9) ? context.l10n.phone : null,
+                        validator: (v) => (v == null || v.trim().length < 9)
+                            ? context.l10n.phone
+                            : null,
                       ),
                     ],
                   ),
@@ -446,20 +598,28 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
             decoration: BoxDecoration(
               color: Theme.of(context).scaffoldBackgroundColor,
               boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5)),
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5)),
               ],
             ),
             child: SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: _submitting ? null : _submit,
+                onPressed: (_submitting || !_canSubmit) ? null : _submit,
                 icon: _submitting
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.send_outlined),
                 label: Text(context.l10n.requestPlateNumber),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                 ),
               ),
             ),
@@ -492,18 +652,25 @@ class _SuccessView extends StatelessWidget {
                   color: AppColors.success.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check_circle_outline, size: 64, color: AppColors.success),
+                child: const Icon(Icons.check_circle_outline,
+                    size: 64, color: AppColors.success),
               ),
               const SizedBox(height: 24),
               Text(
                 context.l10n.plateRequestSuccess,
-                style: Theme.of(context).textTheme.headlineMedium!.copyWith(fontWeight: FontWeight.w900),
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineMedium!
+                    .copyWith(fontWeight: FontWeight.w900),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               Text(
                 context.l10n.plateRequestPendingApproval,
-                style: Theme.of(context).textTheme.bodyLarge!.copyWith(color: context.colors.textSecondary),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyLarge!
+                    .copyWith(color: context.colors.textSecondary),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
@@ -538,7 +705,8 @@ class _FormSection extends StatelessWidget {
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.05)),
+            border: Border.all(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.05)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.02),
@@ -547,7 +715,8 @@ class _FormSection extends StatelessWidget {
               ),
             ],
           ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start, children: children),
         ),
       ],
     );
@@ -602,7 +771,11 @@ class _StatusBanner extends StatelessWidget {
             ? Icons.info
             : Icons.error;
 
-    final text = status == 'found' ? textFound : status == 'not_found' ? textNotFound : (error ?? 'Error');
+    final text = status == 'found'
+        ? textFound
+        : status == 'not_found'
+            ? textNotFound
+            : (error ?? 'Error');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -614,7 +787,10 @@ class _StatusBanner extends StatelessWidget {
       child: Row(children: [
         Icon(icon, size: 18, color: color),
         const SizedBox(width: 10),
-        Expanded(child: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13))),
+        Expanded(
+            child: Text(text,
+                style: TextStyle(
+                    color: color, fontWeight: FontWeight.w600, fontSize: 13))),
       ]),
     );
   }
@@ -624,6 +800,7 @@ class _Field extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final bool required;
+  final bool readOnly;
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
 
@@ -631,6 +808,7 @@ class _Field extends StatelessWidget {
     required this.controller,
     required this.label,
     this.required = false,
+    this.readOnly = false,
     this.keyboardType,
     this.validator,
   });
@@ -639,15 +817,22 @@ class _Field extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
+      readOnly: readOnly,
       decoration: InputDecoration(
         labelText: label,
         filled: true,
         fillColor: Theme.of(context).dividerColor.withValues(alpha: 0.02),
+        suffixIcon: readOnly
+            ? const Icon(Icons.lock_outline, size: 16, color: Colors.grey)
+            : null,
       ),
       keyboardType: keyboardType,
-      validator: validator ?? (required
-          ? (v) => (v == null || v.trim().isEmpty) ? context.l10n.fillAllFields : null
-          : null),
+      validator: validator ??
+          (required
+              ? (v) => (v == null || v.trim().isEmpty)
+                  ? context.l10n.fillAllFields
+                  : null
+              : null),
     );
   }
 }

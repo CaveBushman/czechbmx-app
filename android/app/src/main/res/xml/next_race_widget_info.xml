@@ -6,6 +6,7 @@
     android:targetCellHeight="2"
     android:updatePeriodMillis="3600000"
     android:initialLayout="@layout/next_race_widget"
+    android:previewLayout="@layout/next_race_widget"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:description="@string/next_race_widget_description" />

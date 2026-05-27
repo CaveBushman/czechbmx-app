@@ -3,6 +3,9 @@ import '../constants/api_constants.dart';
 import 'token_storage.dart';
 
 class AuthInterceptor extends Interceptor {
+  // Called when tokens are cleared due to failed refresh — wire up in AuthNotifier
+  static void Function()? onForceLogout;
+
   // Separate Dio instance for refresh — avoids infinite loop
   final Dio _refreshDio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
 
@@ -48,6 +51,7 @@ class AuthInterceptor extends Interceptor {
       final newRefresh = data is Map ? data['refresh'] as String? : null;
       if (newAccess == null || newAccess.isEmpty) {
         await TokenStorage.clear();
+        onForceLogout?.call();
         handler.next(err);
         return;
       }
@@ -64,6 +68,7 @@ class AuthInterceptor extends Interceptor {
       handler.resolve(retryResponse);
     } catch (_) {
       await TokenStorage.clear();
+      onForceLogout?.call();
       handler.next(err);
     }
   }

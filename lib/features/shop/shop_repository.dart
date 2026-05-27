@@ -6,11 +6,11 @@ import 'models/order_model.dart';
 import 'models/product_model.dart';
 
 final shopRepositoryProvider = Provider<ShopRepository>(
-  (ref) => ShopRepository(ref.read(publicDioProvider)),
+  (ref) => ShopRepository(ref.watch(publicDioProvider)),
 );
 
 final authenticatedShopRepositoryProvider = Provider<ShopRepository>(
-  (ref) => ShopRepository(ref.read(dioProvider)),
+  (ref) => ShopRepository(ref.watch(dioProvider)),
 );
 
 class ShopRepository {

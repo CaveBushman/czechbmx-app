@@ -8,7 +8,7 @@ import '../../core/network/dio_client.dart';
 import 'models/event_model.dart';
 
 final eventRepositoryProvider = Provider<EventRepository>(
-  (ref) => EventRepository(ref.read(dioProvider)),
+  (ref) => EventRepository(ref.watch(dioProvider)),
 );
 
 class EventRepository {

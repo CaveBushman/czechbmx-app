@@ -3,6 +3,7 @@ import 'package:czechbmx_app/features/entries/entries_repository.dart';
 import 'package:czechbmx_app/features/entries/models/event_registered_rider_model.dart';
 import 'package:czechbmx_app/features/news/models/news_model.dart';
 import 'package:czechbmx_app/features/riders/models/rider_model.dart';
+import 'package:czechbmx_app/features/riders/rider_repository.dart';
 import 'package:czechbmx_app/features/shop/models/product_model.dart';
 import 'package:czechbmx_app/features/shop/providers/shop_provider.dart';
 import 'package:czechbmx_app/core/constants/api_constants.dart';
@@ -163,6 +164,14 @@ void main() {
   });
 
   group('RiderModel', () {
+    test('RidersFilter identifies default cacheable queries', () {
+      expect(const RidersFilter().isDefault, isTrue);
+      expect(const RidersFilter(search: '  ').isDefault, isTrue);
+      expect(const RidersFilter(search: 'Novak').isDefault, isFalse);
+      expect(const RidersFilter(gender: 'Muž').isDefault, isFalse);
+      expect(const RidersFilter(is20: true).isDefault, isFalse);
+    });
+
     test('parses rider categories and ranking fields', () {
       final rider = RiderModel.fromJson({
         'uci_id': 123,

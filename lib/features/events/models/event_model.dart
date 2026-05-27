@@ -49,6 +49,7 @@ class EventModel {
   final bool doubleRace;
   final int? organizerId;
   final String? organizerName;
+  final String? organizerCity;
   final double? organizerLat;
   final double? organizerLon;
   final EventType type;
@@ -83,6 +84,7 @@ class EventModel {
     required this.doubleRace,
     this.organizerId,
     this.organizerName,
+    this.organizerCity,
     this.organizerLat,
     this.organizerLon,
     required this.type,
@@ -166,6 +168,7 @@ class EventModel {
       doubleRace: json['double_race'] as bool? ?? false,
       organizerId: json['organizer'] as int?,
       organizerName: _stringOrNull(json['organizer_name']),
+      organizerCity: _stringOrNull(json['organizer_city']),
       organizerLat: _doubleOrNull(json['organizer_lat']),
       organizerLon: _doubleOrNull(json['organizer_lon']),
       type: EventType.fromString(json['type_for_ranking'] as String? ?? ''),

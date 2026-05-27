@@ -38,49 +38,58 @@ class RiderDetailScreen extends ConsumerWidget {
 
 void _showQrDialog(BuildContext context, RiderModel rider) {
   final url = 'https://czechbmx.cz/jezdci/${rider.uciId}';
+  final l10n = AppLocalizations.of(context);
+  final textMuted = context.colors.textMuted;
+
   showDialog<void>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: Text(context.l10n.riderQrCode),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            rider.fullName,
-            style: Theme.of(ctx).textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          QrImageView(
-            data: url,
-            version: QrVersions.auto,
-            size: 200,
-            backgroundColor: Colors.white,
-            padding: const EdgeInsets.all(12),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            url,
-            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                  color: context.colors.textMuted,
-                ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+      title: Text(l10n.riderQrCode),
+      content: SizedBox(
+        width: 240,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              rider.fullName,
+              style: Theme.of(ctx).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.all(8),
+              child: QrImageView(
+                data: url,
+                version: QrVersions.auto,
+                size: 200,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              url,
+              style: Theme.of(ctx)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: textMuted),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(),
-          child: Text(context.l10n.close),
+          child: Text(l10n.close),
         ),
         TextButton(
           onPressed: () {
             Share.share(
-              '${context.l10n.shareProfile}: $url',
+              '${l10n.shareProfile}: $url',
               subject: rider.fullName,
             );
           },
-          child: Text(context.l10n.shareProfile),
+          child: Text(l10n.shareProfile),
         ),
       ],
     ),

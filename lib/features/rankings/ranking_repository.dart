@@ -5,7 +5,7 @@ import '../../core/network/dio_client.dart';
 import 'models/ranking_model.dart';
 
 final rankingRepositoryProvider = Provider<RankingRepository>(
-  (ref) => RankingRepository(ref.read(publicDioProvider)),
+  (ref) => RankingRepository(ref.watch(publicDioProvider)),
 );
 
 class RankingRepository {
