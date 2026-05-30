@@ -1,3 +1,16 @@
+// Auth repository — API volání pro správu účtu.
+//
+// UserModel: data přihlášeného uživatele (id, email, jméno, kredit, role, foto,
+//            rider_uci_id = UCI ID navázaného jezdce)
+//
+// Metody AuthRepository:
+//   login()          — POST /api/auth/login/ → uloží tokeny, vrátí UserModel
+//   logout()         — POST /api/auth/logout/ → smaže tokeny lokálně
+//   register()       — POST /api/auth/register/ → vytvoří účet (nevrátí tokeny)
+//   restoreSession() — načte refresh token z TokenStorage, ověří ho na /api/auth/me/
+//   fetchMe()        — GET /api/auth/me/ → aktuální data uživatele (refresh profilu)
+//   updatePhoto()    — PATCH /api/auth/me/ s multipart/form-data → nahraje avatar
+//   registerFcmToken() — POST /api/auth/fcm-token/ → registruje push token
 import 'dart:io';
 
 import 'package:dio/dio.dart';

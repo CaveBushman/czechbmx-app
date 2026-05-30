@@ -1,3 +1,27 @@
+// Profil přihlášeného uživatele — nastavení a přehled aktivit.
+//
+// ProfileScreen je HookConsumerWidget — pro useState (photoUploading, photoRefreshToken)
+// a pro lokální funkci pickAndUploadPhoto().
+//
+// Dvě větve:
+//   user == null  → nepřihlášený pohled (tlačítko Login + Language/Theme/FontSize)
+//   user != null  → plný profil
+//
+// Sekce přihlášeného profilu:
+//   Avatar + jméno + kredit + rolové badges
+//   pickAndUploadPhoto() — vybere fotku (kamera/galerie), otevře CropScreen, nahraje
+//   _LinkedRiderTile    — navázaný jezdec (rider_uci_id z UserModel); klik = detail jezdce
+//   _PlateRequestTile   — odkaz na žádost o startovní číslo
+//   _CreditTile         — stav kreditu s tlačítkem Dobít
+//   _MyEntriesSection   — přihlášky na budoucí závody (myEntriesProvider); storno
+//   _MyOrdersSection    — objednávky z e-shopu (ordersProvider)
+//   _CommissarScanTile  — jen pro komisaře/admin: odkaz na QR skener licencí
+//   LanguageSettingsTile / ThemeSettingsTile / _FontSizeTile — nastavení
+//   Odhlásit
+//
+// photoRefreshToken: int čítač zvýšený po každém uploadu fotky.
+//   Slouží jako cache-buster pro CachedNetworkImage — server vrátí stejné URL,
+//   ale přidáme ho jako query parametr (?v=N) aby si widget nenačítal starou cache.
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -48,7 +72,7 @@ class ProfileScreen extends HookConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                context.l10n.ridersLoginRequired,
+                context.l10n.loginPrompt,
                 style: Theme.of(context).textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),
@@ -366,6 +390,8 @@ Widget _avatarInitial(String firstName) => Center(
         ),
       ),
     );
+
+// ── Moje přihlášky ────────────────────────────────────────────────────────────
 
 class _MyEntriesSection extends ConsumerWidget {
   const _MyEntriesSection();
@@ -784,7 +810,7 @@ class _PlateRequestTile extends StatelessWidget {
   }
 }
 
-// ── My Orders ─────────────────────────────────────────────────────────────────
+// ── Moje objednávky ───────────────────────────────────────────────────────────
 
 class _MyOrdersSection extends ConsumerWidget {
   const _MyOrdersSection();
@@ -1003,6 +1029,9 @@ class _FontSizeTile extends ConsumerWidget {
   }
 }
 
+// ── Komisař — QR skener licencí ──────────────────────────────────────────────
+// Zobrazí se jen pokud má uživatel roli komisaře nebo admina.
+// Otevře /commissar/scan → QrScannerScreen → /commissar/license/{uciId}.
 class _CommissarScanTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {

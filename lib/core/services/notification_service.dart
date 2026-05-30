@@ -111,6 +111,23 @@ class NotificationService {
     _messaging.onTokenRefresh.listen(callback);
   }
 
+  // Přihlásí zařízení k FCM topicu závodu — zavolat po úspěšném přihlášení.
+  // Backend pak může poslat push na topic 'event_{id}' před závodem.
+  static Future<void> subscribeToEvent(int eventId) async {
+    if (!_initialized) return;
+    try {
+      await _messaging.subscribeToTopic('event_$eventId');
+    } catch (_) {}
+  }
+
+  // Odhlásí zařízení z FCM topicu závodu — zavolat po stornu přihlášky.
+  static Future<void> unsubscribeFromEvent(int eventId) async {
+    if (!_initialized) return;
+    try {
+      await _messaging.unsubscribeFromTopic('event_$eventId');
+    } catch (_) {}
+  }
+
   // Navigate to the path carried in notification payload: "/news/slug" or "/events/42".
   static void _handlePayload(String? path) {
     if (path == null || path.isEmpty) return;

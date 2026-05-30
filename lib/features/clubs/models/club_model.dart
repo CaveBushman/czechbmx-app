@@ -13,6 +13,7 @@ class ClubModel {
   final bool haveTrack;
   final double? lat;
   final double? lon;
+  final String? openingHours;
 
   const ClubModel({
     required this.id,
@@ -29,6 +30,7 @@ class ClubModel {
     this.haveTrack = false,
     this.lat,
     this.lon,
+    this.openingHours,
   });
 
   factory ClubModel.fromJson(Map<String, dynamic> json) => ClubModel(
@@ -46,6 +48,7 @@ class ClubModel {
         haveTrack: json['have_track'] as bool? ?? false,
         lat: _nonZeroDouble(json['lat']),
         lon: _nonZeroDouble(json['lon']),
+        openingHours: _nonEmpty(json['opening_hours']),
       );
 
   static String? _nonEmpty(dynamic v) {

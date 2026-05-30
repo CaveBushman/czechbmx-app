@@ -1,7 +1,17 @@
+// Entries repository — API volání pro přihlášky na závody.
+//
+// fetchMyEntries()           — GET /api/entries/my/ → vlastní přihlášky
+// cancelEntry(id)            — POST /api/entries/{id}/cancel/ → storno, vrátí nový kredit
+// fetchEventRegisteredRiders(eventId)
+//   → stáhne HTML stránku /event/entry-riders/{id}, parsuje ji do EventRegisteredRiders
+//   → HTML parsing je v EventRegisteredRiders.fromHtml() (event_registered_rider_model.dart)
+// register() / foreignRegister() — přihlašování jezdců (volá EventDetailScreen)
+// cancelForeignEntry(id)     — storno přihlášky zahraničního jezdce
 import 'package:dio/dio.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/network/dio_client.dart';
+import '../../core/services/notification_service.dart';
 import 'models/entry_model.dart';
 import 'models/event_registered_rider_model.dart';
 import 'models/foreign_entry_model.dart';
@@ -46,7 +56,10 @@ class EntriesRepository {
           'is_beginner': isBeginner,
         },
       );
-      return EntryModel.fromJson(response.data as Map<String, dynamic>);
+      final entry = EntryModel.fromJson(response.data as Map<String, dynamic>);
+      // Přihlásíme zařízení k FCM topicu závodu pro push notifikace.
+      NotificationService.subscribeToEvent(eventId).ignore();
+      return entry;
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }
@@ -148,7 +161,9 @@ class EntriesRepository {
           'is_elite': isElite,
         },
       );
-      return ForeignEntryResult.fromJson(response.data as Map<String, dynamic>);
+      final result = ForeignEntryResult.fromJson(response.data as Map<String, dynamic>);
+      NotificationService.subscribeToEvent(eventId).ignore();
+      return result;
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }

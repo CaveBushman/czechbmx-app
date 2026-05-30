@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/network/dio_client.dart';
 import 'models/event_model.dart';
+import 'models/event_results_model.dart';
 
 final eventRepositoryProvider = Provider<EventRepository>(
   (ref) => EventRepository(ref.watch(dioProvider)),
@@ -91,6 +92,15 @@ class EventRepository {
     try {
       final response = await _dio.get('${ApiConstants.events}$id/');
       return EventModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<EventResultsData> fetchEventResults(int id) async {
+    try {
+      final response = await _dio.get(ApiConstants.eventResults(id));
+      return EventResultsData.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }

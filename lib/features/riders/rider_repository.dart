@@ -1,3 +1,16 @@
+// Rider repository — načítání jezdců z API a správa disk cache.
+//
+// fetchRiders()      — stáhne všechny stránky z /api/riders/ podle filtru;
+//                      výsledek bez filtru cachuje do riders_cache.json
+// fetchRiderDetail() — GET /api/riders/{uciId}/
+// fetchRiderResults()— GET /api/riders/{uciId}/results/
+//
+// Disk cache (riders_cache.json v app documents dir):
+//   _saveToCache() — zapíše raw JSON seznam na disk (asynchronně, nevyhodí chybu)
+//   _loadFromCache()— načte z disku při startu, aby byl seznam dostupný okamžitě
+//
+// warmDefaultRidersCache() — zavolá se z ridersCacheWarmupProvider při startu;
+//   nejdřív načte disk cache, pak stáhne aktuální data a cache přepíše.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -53,6 +66,8 @@ class RiderRepository {
   Future<List<RiderModel>>? _defaultRidersRefresh;
 
   RiderRepository(this._dio);
+
+  List<RiderModel>? get cachedRiders => _defaultRidersCache;
 
   Future<File> _cacheFile() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -186,6 +201,18 @@ class RiderRepository {
     try {
       final response = await _dio.get('${ApiConstants.riders}$uciId/');
       return RiderModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<List<RiderResult>> fetchRiderResults(int uciId) async {
+    try {
+      final response = await _dio.get(ApiConstants.riderResults(uciId));
+      final list = response.data as List<dynamic>;
+      return list
+          .map((e) => RiderResult.fromJson(e as Map<String, dynamic>))
+          .toList();
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }

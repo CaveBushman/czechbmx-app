@@ -1,3 +1,9 @@
+// Barevný systém aplikace.
+//
+// AppColors       — statické brand barvy (primary #E84000 = BMX oranžová)
+// AppColorPalette — abstraktní paleta; DarkPalette / LightPalette jsou implementace
+// context.colors  — extension pro přístup k paletě z BuildContext kdekoliv v widgetech
+// avatarColor()   — deterministicky generuje barvu avatara z UCI ID jezdce
 import 'package:flutter/material.dart';
 
 // ── Brand colors (stejné v obou tématech) ────────────────────────────────────
@@ -5,9 +11,12 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  static const Color primary = Color(0xFFE84000);
-  static const Color primaryLight = Color(0xFFFF6B35);
-  static const Color primaryDark = Color(0xFFB33000);
+  // ── Primární brand barva — při změně stačí upravit tyto tři řádky ──
+  static const Color primary      = Color(0xFF0EA5E9); // sky-500 — brand modrá z loga
+  static const Color primaryLight = Color(0xFF38BDF8); // sky-400
+  static const Color primaryDark  = Color(0xFF0284C7); // sky-600
+  // CSS hex string pro flutter_widget_from_html (musí odpovídat primary výše)
+  static const String primaryHex = '#0EA5E9';
 
   static const Color success = Color(0xFF22C55E);
   static const Color warning = Color(0xFFF59E0B);
@@ -42,37 +51,35 @@ abstract class AppColorPalette {
 }
 
 // ── Dark palette ──────────────────────────────────────────────────────────────
+// Odpovídá dark tématu czechbmx.cz: hluboká námořní slate paleta (slate-950/900/800).
 
 class DarkPalette extends AppColorPalette {
   const DarkPalette();
 
   @override
-  Color get background => const Color(0xFF080A0F); // Hlubší, prémiová temná
+  Color get background => const Color(0xFF0B1120); // slate-950 s indigo nádechem
   @override
-  Color get surface => const Color(0xFF111721);
+  Color get surface => const Color(0xFF111827);    // slate-900 (bg-slate-900 na webu)
   @override
-  // Pro jemné oddělení sekcí
-  Color get surfaceVariant => const Color(0xFF1A222F);
+  Color get surfaceVariant => const Color(0xFF1E293B); // slate-800
   @override
-  Color get card => const Color(0xFF161E2C);
+  Color get card => const Color(0xFF1E293B);           // slate-800
 
   @override
-  Color get textPrimary => const Color(0xFFFFFFFF);
+  Color get textPrimary => const Color(0xFFF8FAFC);    // slate-50
   @override
-  Color get textSecondary => const Color(0xFF94A3B8);
+  Color get textSecondary => const Color(0xFF94A3B8);  // slate-400
   @override
-  // Lightened from #64748B (2.9:1 on card) to #8498B5 (~4.2:1 on card, passes AA for large/bold text)
-  Color get textMuted => const Color(0xFF8498B5);
+  Color get textMuted => const Color(0xFF64748B);      // slate-500
 
   @override
-  Color get divider => const Color(0xFF1A222F);
+  Color get divider => const Color(0xFF1E293B);        // slate-800
   @override
-  // Velmi jemné ohraničení pro "skleněný" efekt
-  Color get border => const Color(0xFF242F41);
+  Color get border => const Color(0xFF334155);         // slate-700 (web používá #334155)
 
   @override
   LinearGradient get cardOverlay => const LinearGradient(
-        colors: [Colors.transparent, Color(0xEE080A0F)], // Tmavší přechod pro lepší čitelnost
+        colors: [Colors.transparent, Color(0xEE0B1120)],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       );
@@ -82,34 +89,35 @@ class DarkPalette extends AppColorPalette {
 }
 
 // ── Light palette ─────────────────────────────────────────────────────────────
+// Odpovídá light tématu czechbmx.cz: slate-50 pozadí s jemným indigo nádechem.
 
 class LightPalette extends AppColorPalette {
   const LightPalette();
 
   @override
-  Color get background => const Color(0xFFF4F6FB);
+  Color get background => const Color(0xFFF0F4FF); // slate-50 s indigo tónem (jako #eef2ff na webu)
   @override
   Color get surface => const Color(0xFFFFFFFF);
   @override
-  Color get surfaceVariant => const Color(0xFFEEF2F7);
+  Color get surfaceVariant => const Color(0xFFF1F5F9); // slate-100
   @override
   Color get card => const Color(0xFFFFFFFF);
 
   @override
-  Color get textPrimary => const Color(0xFF0F172A);
+  Color get textPrimary => const Color(0xFF0F172A);    // slate-950
   @override
-  Color get textSecondary => const Color(0xFF475569);
+  Color get textSecondary => const Color(0xFF475569);  // slate-600
   @override
-  Color get textMuted => const Color(0xFF94A3B8);
+  Color get textMuted => const Color(0xFF94A3B8);      // slate-400
 
   @override
-  Color get divider => const Color(0xFFE2E8F0);
+  Color get divider => const Color(0xFFE2E8F0);        // slate-200
   @override
-  Color get border => const Color(0xFFCBD5E1);
+  Color get border => const Color(0xFFCBD5E1);         // slate-300
 
   @override
   LinearGradient get cardOverlay => const LinearGradient(
-        colors: [Colors.transparent, Color(0xCC1A202E)],
+        colors: [Colors.transparent, Color(0xCC0F172A)],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       );
@@ -135,7 +143,7 @@ extension BuildContextColors on BuildContext {
 // based on any integer ID (rider UCI ID, etc.).
 Color avatarColor(int id) {
   const palette = [
-    Color(0xFFE84000), // orange (primary)
+    Color(0xFF0EA5E9), // sky blue (primary)
     Color(0xFF3B82F6), // blue
     Color(0xFF10B981), // emerald
     Color(0xFF8B5CF6), // violet

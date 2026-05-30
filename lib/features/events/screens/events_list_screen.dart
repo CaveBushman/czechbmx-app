@@ -30,11 +30,6 @@ class EventsListScreen extends ConsumerWidget {
               snap: true,
               title: Text(context.l10n.events),
               actions: [
-                IconButton(
-                  icon: const Icon(Icons.map_outlined),
-                  tooltip: context.l10n.eventsMap,
-                  onPressed: () => context.push('/events-map'),
-                ),
                 _YearPicker(year: year, ref: ref),
               ],
             ),

@@ -7,6 +7,7 @@ import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../entries/models/event_registered_rider_model.dart';
 import '../../entries/providers/entries_provider.dart';
+import '../../riders/providers/favorite_riders_provider.dart';
 
 const _allCategoriesValue = '__all__';
 
@@ -26,14 +27,29 @@ class EventRegisteredRidersScreen extends ConsumerStatefulWidget {
 class _EventRegisteredRidersScreenState
     extends ConsumerState<EventRegisteredRidersScreen> {
   String _selectedCategory = _allCategoriesValue;
+  bool _showFavoritesOnly = false;
 
   @override
   Widget build(BuildContext context) {
     final ridersAsync =
         ref.watch(eventRegisteredRidersProvider(widget.eventId));
+    final favoriteIds = ref.watch(favoriteRidersProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.registeredRiders)),
+      appBar: AppBar(
+        title: Text(context.l10n.registeredRiders),
+        actions: [
+          IconButton(
+            tooltip: context.l10n.onlyFavorites,
+            icon: Icon(
+              _showFavoritesOnly ? Icons.favorite : Icons.favorite_border,
+              color: _showFavoritesOnly ? AppColors.primary : null,
+            ),
+            onPressed: () =>
+                setState(() => _showFavoritesOnly = !_showFavoritesOnly),
+          ),
+        ],
+      ),
       body: ridersAsync.when(
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppColors.primary),
@@ -44,19 +60,35 @@ class _EventRegisteredRidersScreenState
             eventRegisteredRidersProvider(widget.eventId),
           ),
         ),
-        data: _buildContent,
+        data: (data) => _buildContent(data, favoriteIds),
       ),
     );
   }
 
-  Widget _buildContent(EventRegisteredRiders data) {
-    final categoryCounts = data.categoryCounts;
-    final selectedCategory = categoryCounts.containsKey(_selectedCategory)
+  Widget _buildContent(EventRegisteredRiders data, Set<int> favoriteIds) {
+    final baseRiders = _showFavoritesOnly
+        ? data.riders
+            .where((r) => r.uciId != null && favoriteIds.contains(r.uciId))
+            .toList()
+        : data.riders;
+
+    final categoryCounts = <String, int>{};
+    for (final rider in baseRiders) {
+      categoryCounts.update(rider.categoryLabel, (c) => c + 1,
+          ifAbsent: () => 1);
+    }
+    final sortedCategoryCounts = Map.fromEntries(
+      categoryCounts.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
+    );
+
+    final selectedCategory = sortedCategoryCounts.containsKey(_selectedCategory)
         ? _selectedCategory
         : _allCategoriesValue;
-    final visibleRiders = data.ridersForCategory(
-      selectedCategory == _allCategoriesValue ? null : selectedCategory,
-    );
+    final visibleRiders = selectedCategory == _allCategoriesValue
+        ? baseRiders
+        : baseRiders
+            .where((r) => r.categoryLabel == selectedCategory)
+            .toList();
     final selectedCount = visibleRiders.length;
 
     return RefreshIndicator(
@@ -82,8 +114,8 @@ class _EventRegisteredRidersScreenState
                   ],
                   _CategoryFilter(
                     selectedCategory: selectedCategory,
-                    totalCount: data.totalRiders,
-                    categoryCounts: categoryCounts,
+                    totalCount: baseRiders.length,
+                    categoryCounts: sortedCategoryCounts,
                     onChanged: (value) {
                       setState(() {
                         _selectedCategory = value ?? _allCategoriesValue;
@@ -94,7 +126,7 @@ class _EventRegisteredRidersScreenState
                   _CountPanel(
                     selectedCategory: selectedCategory,
                     selectedCount: selectedCount,
-                    totalCount: data.totalRiders,
+                    totalCount: baseRiders.length,
                   ),
                 ],
               ),
@@ -105,8 +137,11 @@ class _EventRegisteredRidersScreenState
               hasScrollBody: false,
               child: Center(
                 child: Text(
-                  context.l10n.noRiders,
+                  _showFavoritesOnly
+                      ? context.l10n.noFavoriteRiders
+                      : context.l10n.noRiders,
                   style: Theme.of(context).textTheme.bodyLarge,
+                  textAlign: TextAlign.center,
                 ),
               ),
             )

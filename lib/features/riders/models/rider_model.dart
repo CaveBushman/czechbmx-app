@@ -1,3 +1,9 @@
+// Datové modely pro jezdce.
+//
+// RiderModel       — jeden jezdec z /api/riders/; fromJson() je záměrně tolerantní
+//                    (více variant polí pro plate, club — kvůli historickým změnám API)
+// RiderResult      — jeden výsledek jezdce z /api/riders/{id}/results/
+// PaginatedRiders  — obaluje stránkovanou odpověď (results + next URL)
 import '../../../core/constants/api_constants.dart';
 
 class RiderModel {
@@ -139,6 +145,42 @@ class RiderModel {
     }
     return null;
   }
+}
+
+class RiderResult {
+  final int? eventId;
+  final String eventName;
+  final DateTime? date;
+  final String category;
+  final int place;
+  final int points;
+  final bool is20;
+  final bool marked20;
+  final bool marked24;
+
+  const RiderResult({
+    this.eventId,
+    required this.eventName,
+    this.date,
+    required this.category,
+    required this.place,
+    required this.points,
+    required this.is20,
+    required this.marked20,
+    required this.marked24,
+  });
+
+  factory RiderResult.fromJson(Map<String, dynamic> json) => RiderResult(
+        eventId: json['event_id'] as int?,
+        eventName: json['event_name'] as String? ?? '',
+        date: json['date'] != null ? DateTime.tryParse(json['date'] as String) : null,
+        category: json['category'] as String? ?? '',
+        place: json['place'] as int? ?? 0,
+        points: json['points'] as int? ?? 0,
+        is20: json['is_20'] as bool? ?? true,
+        marked20: json['marked_20'] as bool? ?? false,
+        marked24: json['marked_24'] as bool? ?? false,
+      );
 }
 
 class PaginatedRiders {

@@ -1,3 +1,18 @@
+// Všechny API endpointy a helper pro media URL.
+//
+// baseUrl / mediaUrl lze přepsat při buildu přes --dart-define=API_BASE_URL=...
+// (default: https://czechbmx.cz)
+//
+// Skupiny endpointů:
+//   Auth:    authLogin, authLogout, authMe, authRefresh, authRegister, authPasswordReset*
+//   Riders:  riders, riderLicense(), riderResults(), plateRequest*
+//   Events:  events, eventEntryInfo(), eventEnter(), eventForeignEntry*(), eventRegisteredRiders()
+//   Entries: entriesMy, entryCancel(), foreignEntryCancel()
+//   Ranking: rankingCategories, ranking
+//   E-shop:  shopCategories, shopProducts, shopProduct(), shopCart*, shopCheckout, shopOrders*
+//   Credit:  creditTopUp
+//
+// mediaPath() — přidá baseUrl k relativní cestě z API (foto jezdce, loga klubů…)
 class ApiConstants {
   ApiConstants._();
 
@@ -28,6 +43,7 @@ class ApiConstants {
 
   static String clubDetail(int id) => '/api/clubs/$id/';
   static String riderLicense(int uciId) => '/api/riders/$uciId/license/';
+  static String riderResults(int uciId) => '/api/riders/$uciId/results/';
   static const String plateRequest = '/api/riders/plate-request/';
   static const String plateRequestLookup = '/api/riders/plate-request/lookup/';
   static const String plateRequestFreePlates = '/api/riders/plate-request/free-plates/';
@@ -39,6 +55,7 @@ class ApiConstants {
   static String entryCancel(int id) => '/api/entries/$id/cancel/';
   static String eventEntryInfo(int id) => '/api/events/$id/entry-info/';
   static String eventEnter(int id) => '/api/events/$id/enter/';
+  static String eventResults(int id) => '/api/events/$id/results/';
   static String eventForeignEntryInfo(int id) => '/api/events/$id/foreign-entry-info/';
   static String eventForeignEnter(int id) => '/api/events/$id/foreign-enter/';
   static String foreignEntryCancel(int id) => '/api/entries/foreign/$id/cancel/';

@@ -1,3 +1,17 @@
+// JWT interceptor — automatická správa přihlašovacích tokenů.
+//
+// Tok:
+//   onRequest: přidá "Authorization: Bearer <access_token>" ke každému requestu
+//   onError:   při 401 zkusí obnovit token přes /api/auth/token/refresh/
+//              a pak zopakuje původní request s novým tokenem
+//              → pokud obnova selže, zavolá onForceLogout (AuthNotifier přejde na Unauthenticated)
+//
+// Důležité detaily:
+//   _refreshDio je zvláštní Dio instance bez interceptoru — jinak by obnova tokenu
+//   způsobila nekonečnou smyčku (401 → obnov → 401 → obnov…)
+//
+//   onForceLogout callback nastavuje AuthNotifier v auth_provider.dart při inicializaci.
+//   Bez toho by interceptor nemohl informovat Riverpod state o vynuceném odhlášení.
 import 'package:dio/dio.dart';
 import '../constants/api_constants.dart';
 import 'token_storage.dart';

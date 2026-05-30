@@ -1,3 +1,15 @@
+// Datový model závodu a pomocné typy.
+//
+// EventType  — enum typů závodů (Mistrovství ČR, Český pohár, Liga…)
+//              .isInternational / .isChampionship jsou helper gettery pro zobrazení badge
+//
+// EventModel — hlavní model; 40+ polí pokrývají vše od dat přes URL po fotky.
+//   Klíčové helper gettery:
+//     isRegistrationOpen / isUnregistrationOpen — pro zobrazení tlačítek v UI
+//     isPast          — závod je v minulosti
+//     raceStart       — DateTime ze string (pro přidání do kalendáře)
+//     hasResults / hasProposition / hasDocuments — pro zobrazení tlačítek odkazů
+//     countdown       — počet dní do závodu (pro _RaceCountdown widget)
 import '../../../core/constants/api_constants.dart';
 
 enum EventType {

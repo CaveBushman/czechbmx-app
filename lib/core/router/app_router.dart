@@ -1,3 +1,23 @@
+// Navigační konfigurace celé aplikace (GoRouter).
+//
+// appRouterProvider vytváří GoRouter se dvěma typy routes:
+//   1. Standalone routes (bez bottom nav):
+//      /onboarding, /login, /register, /search, /commissar/*, /events-map, /clubs/:id
+//   2. Shell routes (s bottom nav — _MainShell):
+//      /news, /events, /riders, /rankings, /shop, /profile
+//
+// Redirect logika (vyhodnocuje se při každé navigaci):
+//   - Web deep linky: /event/{id} → /events/{id}, /jezdci/{id} → /riders/{id}
+//   - Onboarding: pokud nebyl dokončen, přesměruje na /onboarding
+//   - Auth: přihlášený uživatel na /login → /news
+//   - Commissar routes: přístupné jen pro adminy a komisaře
+//
+// Přechody:
+//   _slideTransition — slide zleva (detail screens)
+//   _fadeTransition  — fade (modální screens: login, onboarding)
+//
+// _MainShell drží NavigationBar (6 záložek) a AnimatedSwitcher mezi nimi.
+// _intParamScreen je helper, který bezpečně parsuje int parametr z URL.
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -6,8 +26,12 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/events/screens/event_detail_screen.dart';
 import '../../features/events/screens/event_registered_riders_screen.dart';
+import '../../features/events/models/event_model.dart' show EventPhoto;
+import '../../features/events/screens/event_gallery_screen.dart';
+import '../../features/events/screens/event_results_screen.dart';
 import '../../features/events/screens/events_list_screen.dart';
 import '../../features/news/screens/news_detail_screen.dart';
+import '../../features/home/screens/home_screen.dart';
 import '../../features/news/screens/news_list_screen.dart';
 import '../../features/onboarding/providers/onboarding_provider.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
@@ -51,7 +75,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     navigatorKey: appNavigatorKey,
-    initialLocation: '/news',
+    initialLocation: '/home',
     refreshListenable: Listenable.merge([authNotifier, onboardingNotifier]),
     redirect: (context, state) {
       final loc = state.matchedLocation;
@@ -72,7 +96,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       final authState = authNotifier.value;
       final isLogin = loc == '/login';
-      if (authState is AuthAuthenticated && isLogin) return '/news';
+      if (authState is AuthAuthenticated && isLogin) return '/home';
 
       // Commissar routes: only admins and commissars may access them.
       if (loc.startsWith('/commissar/')) {
@@ -152,6 +176,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => _MainShell(child: child),
         routes: [
           GoRoute(
+            path: '/home',
+            builder: (context, state) => const HomeScreen(),
+          ),
+          GoRoute(
             path: '/news',
             builder: (context, state) => const NewsListScreen(),
             routes: [
@@ -188,6 +216,40 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         name: 'id',
                         builder: (id) => EventRegisteredRidersScreen(
                           eventId: id,
+                        ),
+                      ),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'gallery',
+                    pageBuilder: (context, state) => _slideTransition(
+                      key: state.pageKey,
+                      child: _intParamScreen(
+                        state: state,
+                        name: 'id',
+                        builder: (id) {
+                          final extra =
+                              state.extra as Map<String, dynamic>? ?? {};
+                          return EventGalleryScreen(
+                            eventName: extra['name'] as String? ?? '',
+                            photos: ((extra['photos'] as List?) ?? [])
+                                .whereType<EventPhoto>()
+                                .toList(),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'results',
+                    pageBuilder: (context, state) => _slideTransition(
+                      key: state.pageKey,
+                      child: _intParamScreen(
+                        state: state,
+                        name: 'id',
+                        builder: (id) => EventResultsScreen(
+                          eventId: id,
+                          eventName: state.extra as String? ?? '',
                         ),
                       ),
                     ),
@@ -340,7 +402,7 @@ class _MainShell extends ConsumerWidget {
   const _MainShell({required this.child});
 
   static const _tabs = [
-    '/news',
+    '/home',
     '/events',
     '/riders',
     '/rankings',
@@ -377,9 +439,9 @@ class _MainShell extends ConsumerWidget {
         onDestinationSelected: (i) => context.go(_tabs[i]),
         destinations: [
           NavigationDestination(
-            icon: const Icon(Icons.newspaper_outlined),
-            selectedIcon: const Icon(Icons.newspaper, color: AppColors.primary),
-            label: context.l10n.news,
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home, color: AppColors.primary),
+            label: context.l10n.home,
           ),
           NavigationDestination(
             icon: const Icon(Icons.flag_outlined),

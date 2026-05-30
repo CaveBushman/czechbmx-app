@@ -287,10 +287,10 @@ class _HtmlContent extends StatelessWidget {
       customStylesBuilder: (element) {
         switch (element.localName) {
           case 'a':
-            return {'color': '#E84000', 'text-decoration': 'none'};
+            return {'color': AppColors.primaryHex, 'text-decoration': 'none'};
           case 'blockquote':
             return {
-              'border-left': '3px solid #E84000',
+              'border-left': '3px solid ${AppColors.primaryHex}',
               'padding-left': '12px',
               'margin-left': '0',
               'color': blockquoteColor,

@@ -1,3 +1,12 @@
+// Oblíbení jezdci — perzistentní Set<int> UCI ID uložený v SharedPreferences.
+//
+// favoriteRidersProvider — StateNotifier<Set<int>>
+//   toggle(uciId) — přidá/odebere jezdce a ihned uloží do SharedPreferences
+//
+// Používá se na třech místech:
+//   RidersListScreen  — filtr "Jen oblíbení" a ikona srdíčka na každém tile
+//   RiderDetailScreen — ikona srdíčka v AppBaru
+//   EventRegisteredRidersScreen — toggle "Jen oblíbení" v AppBaru
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

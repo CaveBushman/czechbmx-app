@@ -18,7 +18,7 @@ class EventsMapScreen extends ConsumerWidget {
     final clubsAsync = ref.watch(clubsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.eventsMap)),
+      appBar: AppBar(title: Text(context.l10n.clubsMap)),
       body: clubsAsync.when(
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppColors.primary),

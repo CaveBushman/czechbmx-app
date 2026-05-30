@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/club_model.dart';
 import '../providers/club_provider.dart';
@@ -153,6 +154,24 @@ class _ClubDetailBody extends StatelessWidget {
                       ),
                     ],
                   ),
+
+                // ── Provozní doby ───────────────────────────────────────────
+                if (club.openingHours != null &&
+                    club.openingHours!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _Section(
+                    title: context.l10n.openingHours,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                        child: Text(
+                          club.openingHours!,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
 
                 // ── Contact ─────────────────────────────────────────────────
                 if (hasContact) ...[

@@ -1,3 +1,18 @@
+// HTTP klient (Dio) a zpracování chyb.
+//
+// Dva providery:
+//   dioProvider       — Dio s AuthInterceptorem (posílá Bearer token, obnovuje ho)
+//   publicDioProvider — Dio bez autentizace (veřejné endpointy: news, events…)
+//
+// DioClient.create() nastavuje:
+//   - baseUrl z ApiConstants, timeouty (connect 15 s, receive 30 s)
+//   - Accept-Language header podle aktuálního locale (aby API vracelo správné texty)
+//   - V debug build: _LogInterceptor loguje každý request/response do konzole
+//
+// ApiException:
+//   - Obaluje DioException do čitelné zprávy
+//   - ApiException.fromDio() parsuje chybové pole ze serveru ('detail', 'error', 'message')
+//   - toString() vrací zprávu přímo (lze zobrazit uživateli)
 import 'package:dio/dio.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../constants/api_constants.dart';

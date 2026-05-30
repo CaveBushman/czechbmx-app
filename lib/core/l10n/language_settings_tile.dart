@@ -21,6 +21,8 @@ class LanguageSettingsTile extends ConsumerWidget {
       (code: 'es', label: 'Español'),
       (code: 'it', label: 'Italiano'),
       (code: 'fr', label: 'Français'),
+      (code: 'hu', label: 'Magyar'),
+      (code: 'pl', label: 'Polski'),
     ];
 
     return Container(

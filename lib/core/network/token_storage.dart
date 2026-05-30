@@ -1,9 +1,13 @@
+// Bezpečné ukládání JWT tokenů.
+//
+// iOS/Android → FlutterSecureStorage (Keychain / EncryptedSharedPreferences)
+// Ostatní     → SharedPreferences (fallback pro desktop/web)
+//
+// Používá se výhradně z AuthInterceptoru (auth_interceptor.dart)
+// a AuthRepository (auth_repository.dart). Nikde jinde.
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-// On mobile (iOS/Android) use encrypted Keychain/Keystore.
-// On desktop/web use SharedPreferences (no signing entitlement needed).
 class TokenStorage {
   static const _accessKey = 'jwt_access';
   static const _refreshKey = 'jwt_refresh';

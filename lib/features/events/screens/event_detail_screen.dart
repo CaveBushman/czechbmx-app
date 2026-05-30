@@ -1,3 +1,27 @@
+// Detail závodu — největší obrazovka v aplikaci (~2000 řádků).
+//
+// Hlavní widget: EventDetailScreen → načítá eventDetailProvider(id)
+//
+// Struktura obsahu (_EventDetailContent):
+//   SliverAppBar        — hero foto závodu, sdílení, přidání do kalendáře
+//   _StatusPanel        — stav registrace (otevřena/zavřena/zrušeno), datum
+//   _RaceCountdown      — odpočítávání dní do závodu
+//   _BentoCard grid     — bento mřížka s info (závodiště, datum, typ, systém…)
+//   _TechnicalGrid      — technické info (transponder, výsledkový systém…)
+//   _OrganizerCard      — organizer s mapovým odkazem
+//   _ActionGrid         — tlačítka: přihlášení jezdců, propozice, výsledky, dokumenty…
+//   _EventEntrySheet    — přihlašovací formulář (spodní sheet); komplexní state
+//   _EventGallery       — fotogalerie s pinch-to-zoom prohlížečem (_GalleryViewer)
+//
+// Přihlašování jezdců (_EventEntrySheet, řádky 792–1082):
+//   Přihlášený uživatel → výběr jezdce z oblíbených → volba kategorie → platba kreditem
+//   Pro zahraničního jezdce → ForeignEntrySheet (foreign_entry_sheet.dart)
+//
+// Widgety pro opakované použití v rámci souboru:
+//   _Section, _InfoTile, _LinkTile, _InlineMeta — layout buňky v sekci
+//   _AnimatedEntry — fade-in animace při scrollování
+//   _TrackPainter  — CustomPainter vizualizace BMX trati (Custom paint, řádky 1552–1762)
+//   _EventDocumentLink — model pro PDF/XLS odkazy
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -13,12 +37,15 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/widgets/in_app_browser.dart';
 import '../../../core/widgets/splash_screen.dart';
 import 'foreign_entry_sheet.dart';
+import '../widgets/gallery_viewer.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/auth_repository.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../entries/entries_repository.dart';
 import '../../entries/providers/entries_provider.dart';
+import '../../riders/models/rider_model.dart';
+import '../../riders/providers/favorite_riders_provider.dart';
 import '../../riders/providers/rider_provider.dart';
 import '../models/event_model.dart';
 import '../providers/event_provider.dart';
@@ -208,7 +235,7 @@ class _EventDetailContent extends StatelessWidget {
               ],
               if (event.photos.isNotEmpty) ...[
                 const SizedBox(height: 20),
-                _EventGallery(photos: event.photos),
+                _EventGalleryInline(event: event),
               ],
             ]),
           ),
@@ -683,7 +710,10 @@ class _ActionGrid extends StatelessWidget {
       _EventAction(
         icon: Icons.leaderboard_outlined,
         label: context.l10n.results,
-        url: event.htmlResultsUrl ?? event.webResultsUrl,
+        onTap: () => context.push(
+          '/events/${event.id}/results',
+          extra: event.name,
+        ),
       ),
       if (event.youtubeLink != null)
         _EventAction(
@@ -775,6 +805,17 @@ class _EventAction extends StatelessWidget {
   }
 }
 
+// ── Přihlašovací sheet ────────────────────────────────────────────────────────
+// Spustí se přes _openNativeEntrySheet() z tlačítka "Přihlásit" v _ActionGrid.
+// Zobrazí modal bottom sheet s _EventEntrySheet.
+//
+// _EventEntrySheet tok:
+//   1. Načte dostupné kategorie a poplatky (EntriesRepository.fetchEntryInfo)
+//   2. Zobrazí výběr jezdce z oblíbených (pokud jich je víc → _RiderPickerBody)
+//   3. Ukazuje kategorie (20"/24"/Začátečník) s poplatky; nepřístupné jsou šedé
+//   4. Po potvrzení strhne kredit (EntriesRepository.register) a zavře sheet
+//   Pro zahraničního jezdce: ForeignEntrySheet (foreign_entry_sheet.dart)
+
 Future<void> _openNativeEntrySheet(
   BuildContext context,
   EventModel event,
@@ -801,24 +842,47 @@ class _EventEntrySheetState extends ConsumerState<_EventEntrySheet> {
   final Set<String> _selected = {};
   bool _initializedSelection = false;
   bool _submitting = false;
+  int? _pickedRiderUciId;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (_pickedRiderUciId != null || _future != null) return;
     final user = ref.read(currentUserProvider);
-    final riderUciId = user?.riderUciId;
-    if (_future == null && riderUciId != null) {
+    final favorites = ref.read(favoriteRidersProvider);
+    final candidates = _candidates(user?.riderUciId, favorites);
+    if (candidates.length == 1) _pickRider(candidates.first);
+  }
+
+  Set<int> _candidates(int? linkedUciId, Set<int> favorites) => {
+        ...favorites,
+        if (linkedUciId != null) linkedUciId,
+      };
+
+  void _pickRider(int uciId) {
+    _pickedRiderUciId = uciId;
+    _future = ref.read(entriesRepositoryProvider).fetchEventEntryInfo(
+          eventId: widget.event.id,
+          riderUciId: uciId,
+        );
+    _selected.clear();
+    _initializedSelection = false;
+  }
+
+  void _retryFetch() {
+    if (_pickedRiderUciId == null) return;
+    setState(() {
       _future = ref.read(entriesRepositoryProvider).fetchEventEntryInfo(
             eventId: widget.event.id,
-            riderUciId: riderUciId,
+            riderUciId: _pickedRiderUciId!,
           );
-    }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    final riderUciId = user?.riderUciId;
+    final favorites = ref.watch(favoriteRidersProvider); // reaktivní watch
     final colors = context.colors;
 
     if (user == null) {
@@ -842,24 +906,53 @@ class _EventEntrySheetState extends ConsumerState<_EventEntrySheet> {
       );
     }
 
-    if (riderUciId == null) {
+    final candidates = _candidates(user.riderUciId, favorites).toList();
+
+    // Jezdec byl odebrán z oblíbených → resetuj výběr
+    if (_pickedRiderUciId != null && !candidates.contains(_pickedRiderUciId)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _pickedRiderUciId = null;
+          _future = null;
+          _selected.clear();
+          _initializedSelection = false;
+        });
+      });
+    }
+
+    // Žádní oblíbení jezdci
+    if (candidates.isEmpty) {
       return _EntrySheetScaffold(
         title: context.l10n.register,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(context.l10n.noRiderLinked),
+            Text(context.l10n.noFavoriteRiders),
             const SizedBox(height: 16),
-            FilledButton.icon(
+            OutlinedButton.icon(
               onPressed: () {
                 Navigator.pop(context);
-                openForeignEntrySheet(context, widget.event);
+                context.go('/riders');
               },
-              icon: const Icon(Icons.public_outlined),
-              label: Text(context.l10n.foreignRiderEntry),
+              icon: const Icon(Icons.favorite_border),
+              label: Text(context.l10n.myRiders),
             ),
           ],
+        ),
+      );
+    }
+
+    // Více kandidátů → zobraz picker
+    if (_pickedRiderUciId == null) {
+      final riderCache = ref.watch(ridersProvider).valueOrNull;
+      return _EntrySheetScaffold(
+        title: context.l10n.selectRider,
+        child: _RiderPickerBody(
+          candidates: candidates,
+          riderCache: riderCache,
+          onPick: (uciId) => setState(() => _pickRider(uciId)),
         ),
       );
     }
@@ -887,16 +980,7 @@ class _EventEntrySheetState extends ConsumerState<_EventEntrySheet> {
                 Text(snapshot.error.toString(), textAlign: TextAlign.center),
                 const SizedBox(height: 16),
                 OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _future = ref
-                          .read(entriesRepositoryProvider)
-                          .fetchEventEntryInfo(
-                            eventId: widget.event.id,
-                            riderUciId: riderUciId,
-                          );
-                    });
-                  },
+                  onPressed: _retryFetch,
                   icon: const Icon(Icons.refresh),
                   label: Text(context.l10n.retry),
                 ),
@@ -1035,6 +1119,56 @@ class _EventEntrySheetState extends ConsumerState<_EventEntrySheet> {
   }
 }
 
+// ── Rider picker shown when user has multiple favorite riders ─────────────────
+
+class _RiderPickerBody extends StatelessWidget {
+  final List<int> candidates;
+  final List<RiderModel>? riderCache;
+  final ValueChanged<int> onPick;
+
+  const _RiderPickerBody({
+    required this.candidates,
+    required this.riderCache,
+    required this.onPick,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: candidates.map((uciId) {
+        final rider = riderCache?.where((r) => r.uciId == uciId).firstOrNull;
+        return ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.person_outline, color: AppColors.primary, size: 20),
+          ),
+          title: Text(
+            rider?.fullName ?? 'UCI: $uciId',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          subtitle: rider != null
+              ? Text(
+                  rider.categoryLabel.isNotEmpty ? rider.categoryLabel : 'UCI: $uciId',
+                  style: TextStyle(color: colors.textMuted, fontSize: 12),
+                )
+              : null,
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => onPick(uciId),
+        );
+      }).toList(),
+    );
+  }
+}
+
 class _EntryRiderHeader extends StatelessWidget {
   final String? riderName;
   final int uciId;
@@ -1130,7 +1264,6 @@ class _CreditAndTotalRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final credit = user?.credit ?? 0;
     final canAfford = credit >= totalFee;
     return Row(
@@ -1454,6 +1587,9 @@ class _EventDetailError extends StatelessWidget {
   }
 }
 
+// ── BMX track vizualizace ─────────────────────────────────────────────────────
+// _TrackPainter kreslí schematický obrys BMX trati (CustomPainter).
+// Používá se v _EventHero jako dekorativní přechod za hlavním závodem.
 class _TrackPainter extends CustomPainter {
   final Color color;
 
@@ -1681,214 +1817,80 @@ class _EventDocumentLink {
 
 // ── Event photo gallery ───────────────────────────────────────────────────────
 
-class _EventGallery extends StatelessWidget {
-  final List<EventPhoto> photos;
-  const _EventGallery({required this.photos});
+// ── Inline náhled galerie v detailu závodu ────────────────────────────────────
+// Zobrazí prvních 5 fotek, tlačítko "Všechny fotky (N)" otevře grid screen.
+
+class _EventGalleryInline extends StatelessWidget {
+  final EventModel event;
+  const _EventGalleryInline({required this.event});
 
   @override
   Widget build(BuildContext context) {
+    final photos = event.photos;
+    final preview = photos.take(5).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(context.l10n.gallery,
-            style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 10),
+        Row(
+          children: [
+            Text(context.l10n.gallery,
+                style: Theme.of(context).textTheme.titleMedium),
+            const Spacer(),
+            TextButton(
+              onPressed: () => context.push(
+                '/events/${event.id}/gallery',
+                extra: {'name': event.name, 'photos': photos},
+              ),
+              child: Text(
+                '${context.l10n.allPhotos} (${photos.length})',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
         SizedBox(
-          height: 200,
+          height: 180,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: photos.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (context, index) {
-              final photo = photos[index];
-              return GestureDetector(
-                onTap: () => _openGallery(context, index),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: CachedNetworkImage(
-                    imageUrl: photo.photoUrl,
-                    width: 260,
-                    height: 200,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(
-                      width: 260,
-                      color: context.colors.surfaceVariant,
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                    errorWidget: (_, __, ___) => Container(
-                      width: 260,
-                      decoration: BoxDecoration(
-                        color: context.colors.surfaceVariant,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.image_not_supported_outlined,
-                          color: context.colors.textMuted.withValues(alpha: 0.5),
-                          size: 32,
-                        ),
-                      ),
+            itemCount: preview.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, index) => GestureDetector(
+              onTap: () => openGalleryViewer(context,
+                  photos: photos, initialIndex: index),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: CachedNetworkImage(
+                  imageUrl: preview[index].photoUrl,
+                  width: 240,
+                  height: 180,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => Container(
+                    width: 240,
+                    color: context.colors.surfaceVariant,
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.primary),
                     ),
                   ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _openGallery(BuildContext context, int initialIndex) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        opaque: false,
-        barrierColor: Colors.black87,
-        pageBuilder: (_, __, ___) =>
-            _GalleryViewer(photos: photos, initialIndex: initialIndex),
-        transitionsBuilder: (_, animation, __, child) =>
-            FadeTransition(opacity: animation, child: child),
-        transitionDuration: const Duration(milliseconds: 200),
-      ),
-    );
-  }
-}
-
-class _GalleryViewer extends StatefulWidget {
-  final List<EventPhoto> photos;
-  final int initialIndex;
-  const _GalleryViewer({required this.photos, required this.initialIndex});
-
-  @override
-  State<_GalleryViewer> createState() => _GalleryViewerState();
-}
-
-class _GalleryViewerState extends State<_GalleryViewer> {
-  late final PageController _pageController;
-  late int _current;
-  double _dragOffset = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _current = widget.initialIndex;
-    _pageController = PageController(initialPage: widget.initialIndex);
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  void _onVerticalDragUpdate(DragUpdateDetails d) {
-    setState(() => _dragOffset += d.delta.dy);
-  }
-
-  void _onVerticalDragEnd(DragEndDetails d) {
-    if (_dragOffset.abs() > 80 || d.velocity.pixelsPerSecond.dy.abs() > 400) {
-      Navigator.pop(context);
-    } else {
-      setState(() => _dragOffset = 0);
-    }
-  }
-
-  Future<void> _shareCurrentPhoto() async {
-    final url = widget.photos[_current].photoUrl;
-    await Share.share(url, subject: widget.photos[_current].caption);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final photo = widget.photos[_current];
-    final opacity = (1 - (_dragOffset.abs() / 300)).clamp(0.0, 1.0);
-
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: GestureDetector(
-        onVerticalDragUpdate: _onVerticalDragUpdate,
-        onVerticalDragEnd: _onVerticalDragEnd,
-        child: AnimatedContainer(
-          duration: _dragOffset == 0 ? const Duration(milliseconds: 200) : Duration.zero,
-          color: Colors.black.withValues(alpha: 0.87 * opacity),
-          child: Transform.translate(
-            offset: Offset(0, _dragOffset),
-            child: Stack(
-              children: [
-                PageView.builder(
-                  controller: _pageController,
-                  itemCount: widget.photos.length,
-                  onPageChanged: (i) => setState(() => _current = i),
-                  itemBuilder: (_, index) => Center(
-                    child: InteractiveViewer(
-                      child: CachedNetworkImage(
-                        imageUrl: widget.photos[index].photoUrl,
-                        fit: BoxFit.contain,
-                        placeholder: (_, __) => const Center(
-                          child: CircularProgressIndicator(color: AppColors.primary),
-                        ),
-                      ),
-                    ),
+                  errorWidget: (_, __, ___) => Container(
+                    width: 240,
+                    color: context.colors.surfaceVariant,
+                    child: Icon(Icons.image_not_supported_outlined,
+                        color:
+                            context.colors.textMuted.withValues(alpha: 0.5)),
                   ),
                 ),
-                // Top bar: close + share
-                Positioned(
-                  top: MediaQuery.of(context).padding.top + 4,
-                  left: 0,
-                  right: 0,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white, size: 26),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.share_outlined, color: Colors.white, size: 22),
-                        tooltip: context.l10n.sharePhoto,
-                        onPressed: _shareCurrentPhoto,
-                      ),
-                    ],
-                  ),
-                ),
-                // Caption + counter
-                Positioned(
-                  bottom: MediaQuery.of(context).padding.bottom + 16,
-                  left: 0,
-                  right: 0,
-                  child: Column(
-                    children: [
-                      if (photo.caption.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Text(
-                            photo.caption,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              shadows: [Shadow(blurRadius: 4)],
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${_current + 1} / ${widget.photos.length}',
-                        style: const TextStyle(color: Colors.white70, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }

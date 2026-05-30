@@ -1,3 +1,20 @@
+// Auth state management — přihlašování, registrace, obnova session.
+//
+// AuthState (sealed class):
+//   AuthLoading         — probíhá načítání / přihlašování
+//   AuthAuthenticated   — uživatel je přihlášen, obsahuje UserModel
+//   AuthUnauthenticated — není přihlášen
+//
+// Klíčové providery:
+//   authProvider        — AsyncNotifier<AuthState>; hlavní zdroj pravdy o přihlášení
+//   currentUserProvider — UserModel? (null = nepřihlášen); pohodlný zkratka
+//   isAuthenticatedProvider — bool; pro jednoduché if(isAuth) kontroly
+//
+// AuthNotifier při spuštění:
+//   1. Zaregistruje onForceLogout callback do AuthInterceptoru (viz auth_interceptor.dart)
+//      Interceptor ho zavolá, pokud selže obnova tokenu → přejde na Unauthenticated
+//   2. Pokusí se obnovit session z uloženého refresh tokenu (TokenStorage)
+//   3. Po úspěšném přihlášení registruje FCM push token pro notifikace
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../core/network/auth_interceptor.dart';
 import '../../../core/services/biometric_service.dart';

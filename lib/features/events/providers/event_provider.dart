@@ -1,7 +1,15 @@
+// Events state management — seznam závodů a detail závodu.
+//
+// selectedYearProvider    — vybraný rok v filtru závodů (default = aktuální rok)
+// eventsProvider          — AsyncNotifier<List<EventModel>>; seznam závodů za vybraný rok
+//   Po načtení aktualizuje HomeWidget (widget na ploše telefonu) s info o příštím závodě.
+// eventDetailProvider(id) — FutureProvider.family; detail jednoho závodu z /api/events/{id}/
+// eventResultsProvider(id)— FutureProvider.family; výsledky závodu z /api/events/{id}/results/
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../core/services/home_widget_service.dart';
 import '../event_repository.dart';
 import '../models/event_model.dart';
+import '../models/event_results_model.dart';
 
 final selectedYearProvider = StateProvider<int>((ref) => DateTime.now().year);
 
@@ -11,6 +19,10 @@ final eventsProvider = AsyncNotifierProvider<EventsNotifier, List<EventModel>>(
 
 final eventDetailProvider = FutureProvider.family<EventModel, int>(
   (ref, id) => ref.read(eventRepositoryProvider).fetchEventDetail(id),
+);
+
+final eventResultsProvider = FutureProvider.family<EventResultsData, int>(
+  (ref, id) => ref.read(eventRepositoryProvider).fetchEventResults(id),
 );
 
 class EventsNotifier extends AsyncNotifier<List<EventModel>> {

@@ -1,3 +1,17 @@
+// Vstupní bod aplikace Czech BMX.
+//
+// Inicializuje globální služby (datum, HomeWidget, notifikace), zamkne orientaci
+// na portrét, a spustí ProviderScope → CzechBmxApp.
+//
+// CzechBmxApp sleduje:
+//   - themeMode / locale / fontScale — z Settings providerů
+//   - authProvider    — aby router věděl, jestli je uživatel přihlášen
+//   - deep linky      — cold-start (initialDeepLinkProvider) i warm-start (deepLinkStreamProvider)
+//   - ridersCacheWarmupProvider — předehřeje cache jezdců na pozadí bez spinneru
+//
+// Na vrch všech obrazovek jsou přilepeny dva překryvy:
+//   _OfflineBanner — červený pruh (slide-in), když není internet
+//   SplashScreen   — zobrazí se, dokud authProvider načítá session
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -12,7 +26,6 @@ import 'core/services/home_widget_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
-import 'core/widgets/app_lock_gate.dart';
 import 'core/widgets/splash_screen.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/riders/providers/rider_provider.dart';
@@ -42,6 +55,7 @@ class CzechBmxApp extends ConsumerWidget {
     final fontScale =
         ref.watch(fontScaleProvider).valueOrNull ?? kFontScaleDefault;
     ref.listen(ridersCacheWarmupProvider, (_, __) {});
+    ref.listen(ridersProvider, (_, __) {}); // předem načti jezdce na pozadí
 
     // Cold-start deep link: navigate once the router is ready.
     ref.listen(initialDeepLinkProvider, (_, next) {
@@ -68,8 +82,7 @@ class CzechBmxApp extends ConsumerWidget {
       builder: (context, child) {
         final isLoading = authAsync is AsyncLoading;
 
-        return AppLockGate(
-            child: MediaQuery(
+        return MediaQuery(
           data: MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(fontScale),
           ),
@@ -101,7 +114,7 @@ class CzechBmxApp extends ConsumerWidget {
               ),
             ],
           ),
-        ));
+        );
       },
     );
   }

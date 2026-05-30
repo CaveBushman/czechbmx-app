@@ -1,9 +1,24 @@
+// Profil jezdce — detailní zobrazení jednoho závodníka.
+//
+// Načítá data přes riderDetailProvider(uciId) — cache-first (viz rider_provider.dart).
+//
+// Sekce na obrazovce:
+//   SliverAppBar     — foto jezdce (hero animace z listu), jméno, QR kód, oblíbené
+//   Identity & klub  — klub, startovní číslo, UCI ID (kliknutím zkopíruje do clipboardu)
+//   Kategorie        — 20"/24" třída + ranking badge (top 3 = oranžový gradient)
+//   Transpondery     — transponder 20" a 24" (zobrazí se jen pokud jsou vyplněny)
+//   Výsledky         — _RiderResultsSection načítá riderResultsProvider(uciId),
+//                      zobrazuje výsledky za posledních 365 dní
+//
+// Sdílení: _showQrDialog() → QR kód s URL czechbmx.cz/jezdci/{uciId} + tlačítko sdílet
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:intl/intl.dart';
+
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/splash_screen.dart';
@@ -259,9 +274,9 @@ class _RiderDetailBody extends ConsumerWidget {
                               ClipboardData(text: rider.uciId.toString()));
                           HapticFeedback.mediumImpact();
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('UCI ID zkopírováno'),
-                                duration: Duration(seconds: 1)),
+                            SnackBar(
+                                content: Text(context.l10n.uciIdCopied),
+                                duration: const Duration(seconds: 1)),
                           );
                         },
                         child: _InfoTile(
@@ -305,7 +320,7 @@ class _RiderDetailBody extends ConsumerWidget {
                   // ── Group: Equipment ──
                   if ((rider.transponder20?.isNotEmpty ?? false) || (rider.transponder24?.isNotEmpty ?? false))
                     _DetailCard(
-                      title: 'Transpondery',
+                      title: context.l10n.transponders,
                       children: [
                         if (rider.transponder20 != null && rider.transponder20!.isNotEmpty)
                           _InfoTile(
@@ -321,10 +336,127 @@ class _RiderDetailBody extends ConsumerWidget {
                           ),
                       ],
                     ),
+
+                  // ── Group: Výsledky za poslední rok ──
+                  _RiderResultsSection(uciId: rider.uciId),
                 ],
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Výsledky za poslední rok ──────────────────────────────────────────────────
+
+class _RiderResultsSection extends ConsumerWidget {
+  final int uciId;
+  const _RiderResultsSection({required this.uciId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final resultsAsync = ref.watch(riderResultsProvider(uciId));
+
+    return resultsAsync.when(
+      loading: () => const SizedBox(
+        height: 48,
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2)),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (results) {
+        if (results.isEmpty) return const SizedBox.shrink();
+        return _DetailCard(
+          title: context.l10n.resultsLastYear,
+          children: results.map((r) => _ResultTile(result: r)).toList(),
+        );
+      },
+    );
+  }
+}
+
+class _ResultTile extends StatelessWidget {
+  final RiderResult result;
+  const _ResultTile({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final dateStr = result.date != null
+        ? DateFormat('d. M. yyyy').format(result.date!)
+        : '';
+    final place = result.place;
+    final isTop3 = place >= 1 && place <= 3;
+    final placeColor = switch (place) {
+      1 => const Color(0xFFFFD700),
+      2 => const Color(0xFFC0C0C0),
+      3 => const Color(0xFFCD7F32),
+      _ => colors.textMuted,
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: colors.border.withValues(alpha: 0.15))),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: placeColor.withValues(alpha: isTop3 ? 0.15 : 0.06),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                '$place.',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: placeColor,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  result.eventName,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (result.category.isNotEmpty || dateStr.isNotEmpty)
+                  Text(
+                    [result.category, dateStr].where((s) => s.isNotEmpty).join(' · '),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.textMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          if (result.points > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${result.points} b.',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -372,7 +504,7 @@ class _NationalityBadge extends StatelessWidget {
       ),
       child: Text(
         nationality,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w900,
           color: AppColors.primary,

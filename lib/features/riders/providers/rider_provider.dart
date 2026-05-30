@@ -1,7 +1,21 @@
+// Riders state management — seznam jezdců a detail jezdce.
+//
+// ridersFilterProvider  — aktuální filtr (vyhledávání, pohlaví, 20"/24", elite)
+//                         Nastavuje se z RidersListScreen při každé změně filtru.
+// ridersProvider        — AsyncNotifier<List<RiderModel>>
+//                         Při změně filtru automaticky znovu fetchuje.
+// riderDetailProvider   — FamilyAsyncNotifier<RiderModel, int(uciId)>
+//                         Nejdřív hledá jezdce v cache ridersProvider, pak fetchuje.
+// riderResultsProvider  — výsledky jezdce za poslední rok (pro rider_detail_screen)
+// teamsMapProvider      — Map<id, název> klubů (fallback pro jezdce bez team_name v API)
+//
+// Cache strategie:
+//   ridersCacheWarmupProvider se spustí při startu — stáhne všechny jezdce
+//   a uloží je do riders_cache.json (RiderRepository). Při příštím spuštění
+//   se cache načte okamžitě a pak se tiše aktualizuje na pozadí.
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/network/dio_client.dart';
-import '../../auth/providers/auth_provider.dart';
 import '../models/rider_model.dart';
 import '../rider_repository.dart';
 
@@ -40,13 +54,12 @@ final ridersProvider = AsyncNotifierProvider<RidersNotifier, List<RiderModel>>(
 );
 
 final ridersCacheWarmupProvider = FutureProvider<void>((ref) async {
-  final authState = await ref.watch(authProvider.future);
-  if (authState is! AuthAuthenticated) return;
-
   try {
     await ref.read(riderRepositoryProvider).warmDefaultRidersCache();
-    if (ref.read(ridersFilterProvider).isDefault) {
-      ref.invalidate(ridersProvider);
+    // Tichá aktualizace — nepřechází přes AsyncLoading, žádný shimmer.
+    final cached = ref.read(riderRepositoryProvider).cachedRiders;
+    if (cached != null) {
+      ref.read(ridersProvider.notifier).refreshFromCache(cached);
     }
   } catch (_) {
     // Warmup is best effort; the riders screen still handles its own errors.
@@ -56,26 +69,12 @@ final ridersCacheWarmupProvider = FutureProvider<void>((ref) async {
 class RidersNotifier extends AsyncNotifier<List<RiderModel>> {
   @override
   Future<List<RiderModel>> build() async {
-    final authState = await ref.watch(authProvider.future);
-    if (authState is! AuthAuthenticated) {
-      throw const ApiException('login_required', statusCode: 401);
-    }
-
     final filter = ref.watch(ridersFilterProvider);
     return ref.read(riderRepositoryProvider).fetchRiders(filter: filter);
   }
 
   Future<void> refresh() async {
     state = const AsyncLoading();
-    final authState = await ref.read(authProvider.future);
-    if (authState is! AuthAuthenticated) {
-      state = AsyncError(
-        const ApiException('login_required', statusCode: 401),
-        StackTrace.current,
-      );
-      return;
-    }
-
     final filter = ref.read(ridersFilterProvider);
     state = await AsyncValue.guard(
       () => ref
@@ -83,7 +82,19 @@ class RidersNotifier extends AsyncNotifier<List<RiderModel>> {
           .fetchRiders(filter: filter, forceRefresh: true),
     );
   }
+
+  // Tichá aktualizace po API warmup — bez přechodu přes AsyncLoading.
+  void refreshFromCache(List<RiderModel> riders) {
+    if (state is AsyncData && ref.read(ridersFilterProvider).isDefault) {
+      state = AsyncData(riders);
+    }
+  }
 }
+
+final riderResultsProvider =
+    FutureProvider.family<List<RiderResult>, int>((ref, uciId) {
+  return ref.read(riderRepositoryProvider).fetchRiderResults(uciId);
+});
 
 final riderDetailProvider =
     AsyncNotifierProviderFamily<RiderDetailNotifier, RiderModel, int>(
@@ -93,11 +104,6 @@ final riderDetailProvider =
 class RiderDetailNotifier extends FamilyAsyncNotifier<RiderModel, int> {
   @override
   Future<RiderModel> build(int uciId) async {
-    final authState = await ref.watch(authProvider.future);
-    if (authState is! AuthAuthenticated) {
-      throw const ApiException('login_required', statusCode: 401);
-    }
-
     final cached = ref
         .read(ridersProvider)
         .valueOrNull

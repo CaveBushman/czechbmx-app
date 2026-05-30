@@ -1,3 +1,21 @@
+// Seznam jezdců — hlavní obrazovka sekce Jezdci.
+//
+// Funkce:
+//   - Vyhledávání s 350ms debounce (TextField v SliverAppBar)
+//   - Filtry: pohlaví (Muž/Žena), kolo (20"/24"), Elite, Oblíbení
+//     → vše jde přes ridersFilterProvider → RidersNotifier znovu fetchuje
+//   - Oblíbení filtr je lokální (jen přefiltruje stažený seznam, nevolá API)
+//   - Animovaný vstup tiles (TweenAnimationBuilder, postupně po 50ms)
+//   - Pull-to-refresh
+//
+// Widgety v souboru:
+//   RidersListScreen   — hlavní widget (HookConsumerWidget)
+//   _FilterBar         — lišta s filtrovacími chipy (skrytá, toggle v AppBaru)
+//   _Chip              — jeden filtrační chip (vybraný = oranžový)
+//   _AnimatedRiderTile — fade+slide animace při načtení
+//   _RiderTile         — jeden řádek jezdce (foto, jméno, kategorie, srdíčko)
+//   _ErrorView         — chybový stav
+//   _EmptyView         — prázdný stav
 import 'dart:async';
 import 'dart:ui';
 
@@ -7,7 +25,6 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../core/l10n/app_localizations.dart';
-import '../../../core/network/dio_client.dart';
 import '../../../core/theme/app_colors.dart';
 import 'package:flutter/services.dart';
 import '../models/rider_model.dart';
@@ -92,6 +109,11 @@ class RidersListScreen extends HookConsumerWidget {
                 style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: -0.5),
               ),
               actions: [
+                IconButton(
+                  icon: const Icon(Icons.map_outlined),
+                  tooltip: context.l10n.clubsMap,
+                  onPressed: () => context.push('/events-map'),
+                ),
                 IconButton(
                   icon: Icon(
                     showFilters.value
@@ -531,10 +553,6 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAuth = error is ApiException &&
-        (error as ApiException).statusCode == 401;
-    final message = error.toString();
-
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -542,28 +560,26 @@ class _ErrorView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              isAuth ? Icons.lock_outline : Icons.wifi_off_rounded,
+              Icons.wifi_off_rounded,
               size: 64,
               color: context.colors.textMuted,
             ),
             const SizedBox(height: 16),
             Text(
-              isAuth ? context.l10n.loginRequired : context.l10n.loadingFailed,
+              context.l10n.loadingFailed,
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 8),
             Text(
-              isAuth ? context.l10n.ridersLoginRequired : message,
+              error.toString(),
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => isAuth
-                  ? context.go('/login')
-                  : ref.read(ridersProvider.notifier).refresh(),
-              icon: Icon(isAuth ? Icons.login : Icons.refresh),
-              label: Text(isAuth ? context.l10n.login : context.l10n.retry),
+              onPressed: () => ref.read(ridersProvider.notifier).refresh(),
+              icon: const Icon(Icons.refresh),
+              label: Text(context.l10n.retry),
             ),
           ],
         ),

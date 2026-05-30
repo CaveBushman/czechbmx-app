@@ -393,7 +393,7 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
                             opacity: animation,
                             child: SizeTransition(
                                 sizeFactor: animation,
-                                axisAlignment: -1,
+                                alignment: Alignment.topCenter,
                                 child: child),
                           );
                         },
@@ -528,7 +528,7 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
                         const _SkeletonLoader()
                       else
                         DropdownButtonFormField<int>(
-                          value: _selectedClubId,
+                          initialValue: _selectedClubId,
                           decoration: InputDecoration(
                               labelText: context.l10n.selectClub),
                           isExpanded: true,
@@ -558,7 +558,7 @@ class _PlateRequestScreenState extends ConsumerState<PlateRequestScreen> {
                             ? Text(context.l10n.noFreePlates,
                                 style: TextStyle(color: colors.textMuted))
                             : DropdownButtonFormField<String>(
-                                value: _selectedPlate,
+                                initialValue: _selectedPlate,
                                 decoration: InputDecoration(
                                     labelText: context.l10n.plateNumber),
                                 isExpanded: true,

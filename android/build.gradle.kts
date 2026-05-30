@@ -17,6 +17,15 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+    // Přeskočit :app — ten je už vyhodnocen výše, afterEvaluate by selhalo.
+    // Pro ostatní pluginy (add_2_calendar apod.) přepíšeme starý compileSdk 33 → 36.
+    if (project.name != "app") {
+        afterEvaluate {
+            (extensions.findByName("android") as? com.android.build.gradle.BaseExtension)?.apply {
+                if (compileSdkVersion == "android-33") compileSdkVersion(36)
+            }
+        }
+    }
 }
 
 
