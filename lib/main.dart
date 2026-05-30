@@ -28,6 +28,7 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/widgets/splash_screen.dart';
 import 'features/auth/providers/auth_provider.dart';
+import 'features/clubs/providers/club_provider.dart';
 import 'features/riders/providers/rider_provider.dart';
 
 void main() async {
@@ -56,6 +57,10 @@ class CzechBmxApp extends ConsumerWidget {
         ref.watch(fontScaleProvider).valueOrNull ?? kFontScaleDefault;
     ref.listen(ridersCacheWarmupProvider, (_, __) {});
     ref.listen(ridersProvider, (_, __) {}); // předem načti jezdce na pozadí
+    // Při načtení klubů aktualizuj cache pro Android Auto (mapa tratí).
+    ref.listen(clubsProvider, (_, next) {
+      next.whenData(HomeWidgetService.updateTracksCache);
+    });
 
     // Cold-start deep link: navigate once the router is ready.
     ref.listen(initialDeepLinkProvider, (_, next) {

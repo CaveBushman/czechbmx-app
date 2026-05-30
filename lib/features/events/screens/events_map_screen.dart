@@ -150,7 +150,7 @@ class _MapBodyState extends State<_MapBody> {
       children: [
         TileLayer(
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.example.czechbmx_app',
+          userAgentPackageName: 'com.fpmc.czechbmx_app',
           maxZoom: 18,
         ),
         MarkerLayer(markers: _markers),

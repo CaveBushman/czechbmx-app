@@ -34,7 +34,8 @@ private class CzechBmxSession : Session() {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 private object CarPrefs {
-    const val FILE = "HomeWidgetPreferences"
+    // Musí odpovídat HomeWidgetService._androidAppGroupId v Dartovém kódu.
+    const val FILE = "com.example.czechbmx_app"
 
     fun prefs(ctx: androidx.car.app.CarContext): SharedPreferences =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)

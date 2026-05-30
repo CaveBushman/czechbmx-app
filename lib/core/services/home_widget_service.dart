@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 import '../../core/constants/api_constants.dart';
+import '../../features/clubs/models/club_model.dart';
 import '../../features/events/models/event_model.dart';
 import '../../features/news/models/news_model.dart';
 
@@ -9,15 +10,18 @@ class HomeWidgetService {
 
   // Android: SharedPreferences file name (no prefix needed)
   // iOS: App Group ID — must start with "group."
-  static const _androidAppGroupId = 'com.example.czechbmx_app';
-  static const _iosAppGroupId = 'group.com.example.czechbmxApp';
+  // applicationId appky na Google Play — slouží jako název souboru SharedPreferences.
+  static const _androidAppGroupId = 'com.fpmc.czechbmx_app';
+  // iOS App Group musí odpovídat hodnotě v Xcode pod Signing & Capabilities.
+  static const _iosAppGroupId = 'group.com.fpmc.czechbmxApp';
   static String get _appGroupId =>
       defaultTargetPlatform == TargetPlatform.iOS ? _iosAppGroupId : _androidAppGroupId;
 
+  // Plně kvalifikovaný název třídy widgetu — odpovídá namespace v build.gradle (com.example),
+  // NIKOLI applicationId (com.fpmc). Neměnit bez přejmenování Kotlin třídy a namespace.
   static const _qualifiedName =
       'com.example.czechbmx_app.NextRaceWidgetProvider';
 
-  static const int _maxCalendarEvents = 20; // Zvýšení limitu pro mapu tratí
   static const int _maxNewsItems = 5;
 
   static Future<void> init() async {
@@ -62,33 +66,19 @@ class HomeWidgetService {
     await HomeWidget.updateWidget(qualifiedAndroidName: _qualifiedName);
   }
 
-  /// Aktualizuje databázi tratí pro mapu a Android Auto na základě klubů.
-  static Future<void> updateTracksCache(List<Map<String, dynamic>> clubs) async {
-    // Filtrujeme pouze kluby, které mají v databázi lat/lng
-    final trackClubs = clubs.where((c) {
-      final lat = c['lat'];
-      final lon = c['lng']; // API obvykle vrací 'lng'
-      return lat != null && lon != null;
-    }).toList();
+  /// Aktualizuje databázi klubů/tratí pro Android Auto.
+  static Future<void> updateTracksCache(List<ClubModel> clubs) async {
+    final trackClubs = clubs.where((c) => c.lat != null && c.lon != null).toList();
 
-    // Pro zachování kompatibility s existujícím car_event klíčem v Android Auto
     await HomeWidget.saveWidgetData<int>('car_events_count', trackClubs.length);
-    
     for (var i = 0; i < trackClubs.length; i++) {
       final c = trackClubs[i];
-      await HomeWidget.saveWidgetData<String>('car_event_${i}_name', c['team_name'] ?? '');
-      await HomeWidget.saveWidgetData<String>('car_event_${i}_city', c['city'] ?? '');
-      await HomeWidget.saveWidgetData<String>('car_event_${i}_date', ''); // Tratě nemají datum
-      
-      final lat = c['lat'];
-      final lon = c['lng'];
-      
-      if (lat is num && lon is num) {
-        await HomeWidget.saveWidgetData<double>('car_event_${i}_lat', lat.toDouble());
-        await HomeWidget.saveWidgetData<double>('car_event_${i}_lon', lon.toDouble());
-      }
+      await HomeWidget.saveWidgetData<String>('car_event_${i}_name', c.name);
+      await HomeWidget.saveWidgetData<String>('car_event_${i}_city', c.city ?? '');
+      await HomeWidget.saveWidgetData<String>('car_event_${i}_date', '');
+      await HomeWidget.saveWidgetData<double>('car_event_${i}_lat', c.lat!);
+      await HomeWidget.saveWidgetData<double>('car_event_${i}_lon', c.lon!);
     }
-
     await HomeWidget.updateWidget(qualifiedAndroidName: _qualifiedName);
   }
 
